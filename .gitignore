@@ -1,0 +1,5 @@
+# Claude Code configuration and documentation
+.claude/
+claude.md
+claude.local.md
+docs/
