@@ -21,7 +21,6 @@ else
 fi
 
 if sudo test -f /etc/sudoers.d/99-omarchy-installer; then
-  sudo rm -f /etc/sudoers.d/99-omarchy-installer &>/dev/null
   echo
   echo_in_style "Remember to remove USB installer!"
 fi
@@ -53,14 +52,19 @@ if gum confirm --padding "0 0 0 $((PADDING_LEFT + 32))" --show-help=false --defa
   sudo mkdir -p /var/tmp
   sudo touch /var/tmp/omarchy-install-completed
 
+  # Remove installer sudoers file before rebooting
+  if sudo test -f /etc/sudoers.d/99-omarchy-installer; then
+    sudo rm -f /etc/sudoers.d/99-omarchy-installer &>/dev/null
+  fi
+
   # Clear screen to hide any shutdown messages
   clear
 
   # Try to reboot (works for manual installations, automated script handles ISO reboots)
   if command -v systemctl &>/dev/null; then
-    systemctl reboot --no-wall 2>/dev/null || true
+    sudo systemctl reboot --no-wall 2>/dev/null || true
   else
-    reboot 2>/dev/null || true
+    sudo reboot 2>/dev/null || true
   fi
 
   # If reboot didn't work (e.g., in chroot), exit gracefully
