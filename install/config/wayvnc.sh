@@ -42,19 +42,11 @@ EOF
   # Get IP address for user information
   ip_address=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -n 1)
 
+  # Store VNC info for display on the finished screen
+  mkdir -p /tmp/omarchy
+  echo "$ip_address" > /tmp/omarchy/vnc_ip.txt
+
   echo "✓ wayvnc installed and configured"
-  echo ""
-  echo "═══════════════════════════════════════════════════════════"
-  echo "VNC Access Information:"
-  echo "═══════════════════════════════════════════════════════════"
-  echo ""
-  echo "Once the system reboots, it may be accessed via VNC at:"
-  echo ""
-  echo "  vnc://${ip_address}:5900"
-  echo ""
-  echo "If prompted, you may ignore the encryption prompts to connect."
-  echo ""
-  echo "═══════════════════════════════════════════════════════════"
 else
   echo "wayvnc disabled (not requested in advanced mode)"
 fi
