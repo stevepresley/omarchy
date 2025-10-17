@@ -30,7 +30,21 @@ fi
 if [[ -f /tmp/omarchy/vnc_ip.txt ]]; then
   vnc_ip=$(cat /tmp/omarchy/vnc_ip.txt)
   echo
-  echo_in_style "VNC Access: vnc://${vnc_ip}:5900"
+  echo
+  cat <<EOF | tte --canvas-width 0 --anchor-text c --frame-rate 640 print
+═══════════════════════════════════════════════════════════
+           VNC Access Information
+═══════════════════════════════════════════════════════════
+
+Once the system reboots, it may be accessed via VNC at:
+
+  vnc://${vnc_ip}:5900
+
+If prompted, you may ignore encryption prompts to connect.
+
+═══════════════════════════════════════════════════════════
+EOF
+  echo
 fi
 
 # Exit gracefully if user chooses not to reboot
