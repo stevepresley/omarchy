@@ -13,22 +13,48 @@ fi
 if [[ "$enable_wayvnc" == "true" ]]; then
   echo "Enabling wayvnc (VNC remote access)..."
 
-  # Install wayvnc
-  sudo pacman -S --noconfirm --needed wayvnc
+  # Install wayvnc and jq (for JSON parsing in startup script)
+  sudo pacman -S --noconfirm --needed wayvnc jq
 
   # Create the wayvnc startup script
   cat > ~/start-wayvnc.sh <<'EOF'
 #!/bin/bash
-# Wait for Virtual-1 to be ready
-while ! hyprctl monitors | grep -q "Virtual-1"; do
+
+# Log file for debugging
+LOGFILE="$HOME/.local/share/wayvnc.log"
+mkdir -p "$(dirname "$LOGFILE")"
+
+echo "$(date): Starting wayvnc setup..." >> "$LOGFILE"
+
+# Wait for Hyprland to be ready
+echo "$(date): Waiting for Hyprland..." >> "$LOGFILE"
+timeout=30
+elapsed=0
+while ! hyprctl monitors &>/dev/null; do
     sleep 0.5
+    elapsed=$((elapsed + 1))
+    if [ $elapsed -gt $((timeout * 2)) ]; then
+        echo "$(date): ERROR: Timeout waiting for Hyprland" >> "$LOGFILE"
+        exit 1
+    fi
 done
 
+# Get the first monitor name (usually eDP-1, HDMI-A-1, or similar)
+PRIMARY_MONITOR=$(hyprctl monitors -j | jq -r '.[0].name')
+echo "$(date): Primary monitor detected: $PRIMARY_MONITOR" >> "$LOGFILE"
+
 # Create and configure VNC display
-hyprctl output create headless VNC-1
-sleep 0.5
-hyprctl keyword monitor "VNC-1,1920x1080@60,auto,1,mirror,Virtual-1"
-wayvnc -o VNC-1 0.0.0.0 5900
+echo "$(date): Creating VNC-1 headless output..." >> "$LOGFILE"
+hyprctl output create headless >> "$LOGFILE" 2>&1
+sleep 1
+
+# Configure VNC-1 to mirror the primary monitor
+echo "$(date): Configuring VNC-1 to mirror $PRIMARY_MONITOR..." >> "$LOGFILE"
+hyprctl keyword monitor "VNC-1,1920x1080@60,auto,1,mirror,$PRIMARY_MONITOR" >> "$LOGFILE" 2>&1
+
+# Start wayvnc
+echo "$(date): Starting wayvnc on 0.0.0.0:5900..." >> "$LOGFILE"
+wayvnc -o VNC-1 0.0.0.0 5900 >> "$LOGFILE" 2>&1
 EOF
 
   # Make the script executable
