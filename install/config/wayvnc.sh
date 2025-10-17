@@ -39,22 +39,13 @@ while ! hyprctl monitors &>/dev/null; do
     fi
 done
 
-# Get the first monitor name (usually eDP-1, HDMI-A-1, or similar)
+# Get the primary monitor name
 PRIMARY_MONITOR=$(hyprctl monitors -j | jq -r '.[0].name')
 echo "$(date): Primary monitor detected: $PRIMARY_MONITOR" >> "$LOGFILE"
 
-# Create and configure VNC display
-echo "$(date): Creating VNC-1 headless output..." >> "$LOGFILE"
-hyprctl output create headless >> "$LOGFILE" 2>&1
-sleep 1
-
-# Configure VNC-1 to mirror the primary monitor
-echo "$(date): Configuring VNC-1 to mirror $PRIMARY_MONITOR..." >> "$LOGFILE"
-hyprctl keyword monitor "VNC-1,1920x1080@60,auto,1,mirror,$PRIMARY_MONITOR" >> "$LOGFILE" 2>&1
-
-# Start wayvnc
-echo "$(date): Starting wayvnc on 0.0.0.0:5900..." >> "$LOGFILE"
-wayvnc -o VNC-1 0.0.0.0 5900 >> "$LOGFILE" 2>&1
+# Start wayvnc directly on the primary monitor
+echo "$(date): Starting wayvnc on $PRIMARY_MONITOR at 0.0.0.0:5900..." >> "$LOGFILE"
+wayvnc -o "$PRIMARY_MONITOR" 0.0.0.0 5900 >> "$LOGFILE" 2>&1
 EOF
 
   # Make the script executable
