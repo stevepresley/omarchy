@@ -52,15 +52,10 @@ if gum confirm --padding "0 0 0 $((PADDING_LEFT + 32))" --show-help=false --defa
   sudo mkdir -p /var/tmp
   sudo touch /var/tmp/omarchy-install-completed
 
-  # Remove installer sudoers file before rebooting
-  if sudo test -f /etc/sudoers.d/99-omarchy-installer; then
-    sudo rm -f /etc/sudoers.d/99-omarchy-installer &>/dev/null
-  fi
-
   # Clear screen to hide any shutdown messages
   clear
 
-  # Try to reboot (works for manual installations, automated script handles ISO reboots)
+  # Reboot the system (sudoers file allows passwordless sudo until first boot cleanup)
   if command -v systemctl &>/dev/null; then
     sudo systemctl reboot --no-wall 2>/dev/null || true
   else
