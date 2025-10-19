@@ -31,4 +31,3 @@ run_logged $OMARCHY_INSTALL/config/hardware/fix-apple-t2.sh
 # Advanced mode configuration (from ISO configurator)
 run_logged $OMARCHY_INSTALL/config/ssh.sh
 run_logged $OMARCHY_INSTALL/config/wayvnc.sh
-run_logged $OMARCHY_INSTALL/config/autologin.sh
