@@ -19,6 +19,17 @@ if [[ "$enable_autologin" == "false" ]]; then
   # Enable getty for tty1 (standard login prompt)
   sudo systemctl enable getty@tty1.service
 
+  # Create .bash_profile to auto-start Hyprland on tty1 after login
+  cat > "$HOME/.bash_profile" << 'EOF'
+# Start Hyprland on tty1 after login
+if [[ -z $DISPLAY ]] && [[ $(tty) == /dev/tty1 ]]; then
+  exec uwsm start -- hyprland.desktop
+fi
+
+# Source bashrc for interactive shells
+[[ -f ~/.bashrc ]] && . ~/.bashrc
+EOF
+
   echo "✓ Autologin disabled - password will be required at boot"
 else
   echo "Autologin enabled (seamless boot to desktop)"

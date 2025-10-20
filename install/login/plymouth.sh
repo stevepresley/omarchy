@@ -140,12 +140,23 @@ if ! systemctl is-enabled plymouth-quit-wait.service | grep -q masked; then
   sudo systemctl daemon-reload
 fi
 
-# Enable omarchy-seamless-login.service only if not already enabled
-if ! systemctl is-enabled omarchy-seamless-login.service | grep -q enabled; then
-  sudo systemctl enable omarchy-seamless-login.service
+# Read autologin setting from advanced state file if it exists
+if [[ -f "$OMARCHY_ADVANCED_STATE" ]]; then
+  enable_autologin=$(jq -r '.enable_autologin' "$OMARCHY_ADVANCED_STATE")
+else
+  # Default: autologin enabled if no state file (standard behavior)
+  enable_autologin="true"
 fi
 
-# Disable getty@tty1.service only if not already disabled
-if ! systemctl is-enabled getty@tty1.service | grep -q disabled; then
-  sudo systemctl disable getty@tty1.service
+# Only configure autologin services if autologin is enabled
+if [[ "$enable_autologin" != "false" ]]; then
+  # Enable omarchy-seamless-login.service only if not already enabled
+  if ! systemctl is-enabled omarchy-seamless-login.service | grep -q enabled; then
+    sudo systemctl enable omarchy-seamless-login.service
+  fi
+
+  # Disable getty@tty1.service only if not already disabled
+  if ! systemctl is-enabled getty@tty1.service | grep -q disabled; then
+    sudo systemctl disable getty@tty1.service
+  fi
 fi
