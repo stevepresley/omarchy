@@ -112,7 +112,7 @@ ufw
 ufw-docker
 unzip
 uwsm
-walker-bin
+walker
 waybar
 wf-recorder
 whois
