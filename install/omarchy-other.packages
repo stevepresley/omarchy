@@ -44,6 +44,12 @@ wget
 yay-debug
 zram-generator
 
+# Display manager and VNC for Advanced mode
+greetd
+greetd-tuigreet
+sway
+wayvnc
+
 # T2 MacBook support packages
 apple-bcm-firmware
 apple-t2-audio-config
