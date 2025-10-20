@@ -46,7 +46,7 @@ zram-generator
 
 # Display manager and VNC for Advanced mode
 greetd
-greetd-regreet
+greetd-tuigreet
 sway
 wayvnc
 

@@ -4,7 +4,7 @@
 # greetd provides login screen with optional VNC remote access via wayvnc
 
 # Install greetd and related packages
-sudo pacman -S --noconfirm --needed greetd greetd-regreet sway
+sudo pacman -S --noconfirm --needed greetd greetd-tuigreet sway
 
 # Create greetd configuration
 sudo mkdir -p /etc/greetd
@@ -32,14 +32,14 @@ EOF
 sudo chmod +x /usr/local/bin/greetd-wayvnc-attach
 
 # Create Sway configuration for greeter
-# This runs regreet (GUI greeter) and wayvnc attach script
+# This runs tuigreet (TUI greeter) and wayvnc attach script
 sudo tee /etc/greetd/sway-config <<'EOF' >/dev/null
 # Sway config for greetd greeter
 # Attaches wayvnc to this compositor (for VNC login screen access)
 exec /usr/local/bin/greetd-wayvnc-attach
 
-# Launch regreet GUI login prompt and exit Sway when done
-exec regreet; swaymsg exit
+# Launch tuigreet TUI login prompt
+exec "tuigreet --remember --remember-session --time --cmd Hyprland"
 EOF
 
 # Add sudoers rule to allow greeter user to run wayvncctl without password
@@ -53,5 +53,5 @@ sudo chmod 0440 /etc/sudoers.d/greeter-wayvnc
 # Enable greetd service
 sudo systemctl enable greetd.service
 
-echo "✓ greetd display manager configured with regreet greeter"
+echo "✓ greetd display manager configured with tuigreet greeter"
 echo "  VNC clients will see login screen via wayvnc"
