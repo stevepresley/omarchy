@@ -44,6 +44,71 @@ This repository uses a multi-tier branching strategy:
 
 **For contributors**: Please read [CONTRIBUTING.md](CONTRIBUTING.md) to understand our workflow.
 
+## Dual-Boot Configuration
+
+If you install Omarchy Advanced to a partition (for dual-boot with Windows, macOS, or another Linux distro), the Limine bootloader will attempt to automatically detect your other operating systems.
+
+### Automatic Detection
+
+After installation, Limine should automatically find and add boot entries for:
+- Windows (via Windows Boot Manager)
+- macOS
+- Other Linux distributions
+
+This happens through the `limine-scan` utility which runs during the installation process.
+
+### Manual Configuration (If Auto-Detection Fails)
+
+If your other operating system doesn't appear in the boot menu, you can manually add it by editing `/boot/limine.conf`:
+
+**For Windows:**
+```conf
+/Windows
+comment: Windows Boot Manager
+protocol: efi_chainload
+image_path: boot():/EFI/Microsoft/Boot/bootmgfw.efi
+```
+
+**For macOS:**
+```conf
+/macOS
+comment: macOS
+protocol: efi_chainload
+image_path: boot():/EFI/APPLE/APPLE.EFI
+```
+
+**For another Linux distribution:**
+```conf
+/Ubuntu
+comment: Ubuntu Linux
+protocol: linux
+kernel_path: boot():/EFI/ubuntu/vmlinuz
+module_path: boot():/EFI/ubuntu/initrd.img
+cmdline: root=/dev/sdaX ro quiet
+```
+(Replace `/dev/sdaX` with your actual root partition)
+
+After editing the file, the changes will take effect on the next boot.
+
+### Finding EFI Boot Files
+
+To locate boot files for manual configuration:
+
+```bash
+# List all EFI boot entries
+sudo efibootmgr -v
+
+# Browse the EFI System Partition
+ls -R /boot/EFI/
+```
+
+### Getting Help
+
+If you're having trouble configuring dual-boot:
+- Check the [Limine documentation](https://github.com/limine-bootloader/limine/blob/trunk/CONFIG.md)
+- Ask on the [Omarchy Discord](https://discord.gg/tXFUdasqhY)
+- Open an issue on GitHub
+
 ## License
 
 Omarchy is released under the [MIT License](https://opensource.org/licenses/MIT).
