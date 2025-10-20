@@ -4,7 +4,7 @@
 # greetd provides login screen with optional VNC remote access via wayvnc
 
 # Install greetd and related packages
-sudo pacman -S --noconfirm --needed greetd greetd-tuigreet sway
+sudo pacman -S --noconfirm --needed greetd greetd-regreet sway
 
 # Create greetd configuration
 sudo mkdir -p /etc/greetd
@@ -17,20 +17,41 @@ command = "sway --config /etc/greetd/sway-config"
 user = "greeter"
 EOF
 
+# Create wayvnc attach helper script for greeter
+# This script is called by Sway to attach wayvnc to the greeter compositor
+sudo tee /usr/local/bin/greetd-wayvnc-attach <<'EOF' >/dev/null
+#!/bin/bash
+# Wait for Sway compositor to be fully ready
+sleep 3
+
+# Attach wayvnc to the greeter's Sway compositor
+# Must use full socket path and sudo (greeter user has permission via sudoers.d)
+sudo wayvncctl --socket /tmp/wayvncctl-0 attach /run/user/965/wayland-1
+EOF
+
+sudo chmod +x /usr/local/bin/greetd-wayvnc-attach
+
 # Create Sway configuration for greeter
-# This runs tuigreet and wayvncctl attach (if wayvnc is enabled)
+# This runs regreet (GUI greeter) and wayvnc attach script
 sudo tee /etc/greetd/sway-config <<'EOF' >/dev/null
 # Sway config for greetd greeter
-# Runs tuigreet login prompt
+# Attaches wayvnc to this compositor (for VNC login screen access)
+exec /usr/local/bin/greetd-wayvnc-attach
 
-exec "tuigreet --remember --remember-session --time --cmd Hyprland"
-
-# If wayvnc is running in detached mode, attach to this compositor
-# This allows VNC clients to see the login screen
-exec "wayvncctl attach 2>/dev/null || true"
+# Launch regreet GUI login prompt and exit Sway when done
+exec regreet; swaymsg exit
 EOF
+
+# Add sudoers rule to allow greeter user to run wayvncctl without password
+# This is needed for the greetd-wayvnc-attach script
+sudo tee /etc/sudoers.d/greeter-wayvnc <<'EOF' >/dev/null
+greeter ALL=(ALL) NOPASSWD: /usr/bin/wayvncctl
+EOF
+
+sudo chmod 0440 /etc/sudoers.d/greeter-wayvnc
 
 # Enable greetd service
 sudo systemctl enable greetd.service
 
-echo "✓ greetd display manager configured"
+echo "✓ greetd display manager configured with regreet greeter"
+echo "  VNC clients will see login screen via wayvnc"

@@ -64,11 +64,21 @@ EOF
 
   # Add wayvncctl attach to user's Hyprland autostart
   # This attaches wayvnc to the user's session after they log in
+  # Must use full socket path and sudo (user gets permission via sudoers.d)
   if ! grep -q "wayvncctl attach" ~/.config/hypr/autostart.conf 2>/dev/null; then
     echo "" >> ~/.config/hypr/autostart.conf
     echo "# Attach wayvnc to this Hyprland session for VNC access" >> ~/.config/hypr/autostart.conf
-    echo "exec-once = wayvncctl attach 2>/dev/null || true" >> ~/.config/hypr/autostart.conf
+    echo 'exec-once = sudo wayvncctl --socket /tmp/wayvncctl-0 attach $XDG_RUNTIME_DIR/wayland-1' >> ~/.config/hypr/autostart.conf
   fi
+
+  # Add sudoers rule to allow user to run wayvncctl without password
+  # This is needed for the Hyprland autostart attach command
+  # Note: $USER is set during installation by archinstall
+  sudo tee /etc/sudoers.d/user-wayvnc <<EOF >/dev/null
+$USER ALL=(ALL) NOPASSWD: /usr/bin/wayvncctl
+EOF
+
+  sudo chmod 0440 /etc/sudoers.d/user-wayvnc
 
   # Get IP address for user information
   ip_address=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -n 1)
