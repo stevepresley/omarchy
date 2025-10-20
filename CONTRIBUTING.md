@@ -143,6 +143,36 @@ Follow the existing code style in the repository:
 - Use `run_logged` helper for installation steps
 - Add comments for complex logic
 
+### UI/Menu Formatting
+
+When adding or modifying UI elements in scripts (especially the configurator), use proper formatting functions to maintain visual consistency:
+
+**Centered Display Elements:**
+- Always use `$PADDING_LEFT` for left margin to center content
+- For `gum style` with borders/margins: `--margin "1 0 1 $PADDING_LEFT"`
+- For tables: pipe through `sed "s/^/${PADDING_LEFT_SPACES}/"`
+- For text output: use helper functions like `clear_logo`, `step()`, `notice()`
+
+**Example - Properly Formatted Box:**
+```bash
+gum style --border normal --margin "1 0 1 $PADDING_LEFT" --padding "1 2" \
+  "Your message here"
+```
+
+**Example - Properly Formatted Table:**
+```bash
+echo -e "$table_data" | gum table -s "," -p | sed "s/^/${PADDING_LEFT_SPACES}/"
+```
+
+**Available Helper Functions** (from `install/helpers/presentation.sh`):
+- `clear_logo` - Clear screen and show centered logo
+- `$PADDING_LEFT` - Left padding value for centering
+- `$PADDING_LEFT_SPACES` - String of spaces for sed/text centering
+- `$LOGO_WIDTH`, `$TERM_WIDTH` - Use for width calculations
+
+**Why This Matters:**
+Consistent formatting ensures all UI elements are properly centered and aligned with the Omarchy logo, creating a professional, cohesive visual experience throughout the installation process.
+
 ### Testing
 
 Since Omarchy Advanced is a system installer, testing requires:
