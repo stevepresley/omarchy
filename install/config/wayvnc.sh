@@ -17,6 +17,18 @@ if [[ "$enable_wayvnc" == "true" ]]; then
   # Install wayvnc (has PAM support compiled in on Arch)
   sudo pacman -S --noconfirm --needed wayvnc
 
+  # Ensure PAM policy exists (Arch package should ship it, but add fallback just in case)
+  if [[ ! -f /etc/pam.d/wayvnc ]]; then
+    sudo tee /etc/pam.d/wayvnc <<'EOF' >/dev/null
+# Fallback PAM configuration for wayvnc
+# Mirrors the standard system login stack so VNC auth matches local users
+auth      include   system-local-login
+account   include   system-local-login
+password  include   system-local-login
+session   include   system-local-login
+EOF
+  fi
+
   # Create wayvnc configuration directory
   sudo mkdir -p /etc/wayvnc
 
