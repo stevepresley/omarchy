@@ -73,9 +73,8 @@ import sys
 state_path = pathlib.Path(sys.argv[1])
 binding_paths = [pathlib.Path(p) for p in sys.argv[2:]]
 
-pattern_super = re.compile(r'^(bind\w*\s*=\s*)SUPER(\s*,)', re.IGNORECASE)
+pattern_bind = re.compile(r'^(bind\w*\s*=\s*)([^,]+)(,.*)$', re.IGNORECASE)
 pattern_ctrl_alt_print = re.compile(r'^(bind\w*\s*=\s*)CTRL\s+ALT(\s*,\s*PRINT\b)', re.IGNORECASE)
-
 for path in binding_paths:
     if not path.exists():
         continue
@@ -86,14 +85,43 @@ for path in binding_paths:
     output_lines = []
 
     for line in lines:
-        new_line = pattern_super.sub(r'\1CTRL ALT\2', line)
-        if new_line != line:
-            changed = True
+        updated_line = line
 
-        new_line2 = pattern_ctrl_alt_print.sub(r'\1SUPER ALT\2', new_line)
-        if new_line2 != new_line:
+        match = pattern_bind.match(updated_line.strip())
+        if match:
+            prefix, modifiers, suffix = match.groups()
+            tokens = [tok for tok in modifiers.strip().split() if tok]
+            tokens_upper = [tok.upper() for tok in tokens]
+
+            if "SUPER" in tokens_upper:
+                normalized_tokens = []
+                for tok in tokens:
+                    upper_tok = tok.upper()
+                    if upper_tok == "SUPER":
+                        normalized_tokens.extend(["CTRL", "ALT"])
+                    else:
+                        normalized_tokens.append(upper_tok)
+
+                # Remove duplicates while preserving order
+                deduped_tokens = []
+                seen = set()
+                for tok in normalized_tokens:
+                    if tok not in seen:
+                        deduped_tokens.append(tok)
+                        seen.add(tok)
+
+                new_modifiers = " ".join(deduped_tokens)
+                updated_line = f"{prefix}{new_modifiers}{suffix}"
+                if updated_line != line:
+                    changed = True
+
+        # Adjust screen-record shortcut to SUPER+ALT+Print
+        new_line = pattern_ctrl_alt_print.sub(r'\1SUPER ALT\2', updated_line)
+        if new_line != updated_line:
             changed = True
-        output_lines.append(new_line2)
+            updated_line = new_line
+
+        output_lines.append(updated_line)
 
     if changed:
         trailing_newline = original.endswith("\n")
