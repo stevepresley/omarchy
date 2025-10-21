@@ -42,10 +42,21 @@ fi
 shopt -s nullglob
 
 config_files=()
+
+# User-specific Hypr config overrides
 if [[ -f "$HOME/.config/hypr/bindings.conf" ]]; then
   config_files+=("$HOME/.config/hypr/bindings.conf")
 fi
 for file in "$HOME/.config/hypr/bindings/"*.conf; do
+  config_files+=("$file")
+done
+
+# Omarchy default Hypr bindings (sourced by hyprland.conf before user overrides)
+DEFAULT_HYPR_DIR="$HOME/.local/share/omarchy/default/hypr"
+if [[ -f "$DEFAULT_HYPR_DIR/bindings.conf" ]]; then
+  config_files+=("$DEFAULT_HYPR_DIR/bindings.conf")
+fi
+for file in "$DEFAULT_HYPR_DIR/bindings/"*.conf; do
   config_files+=("$file")
 done
 
