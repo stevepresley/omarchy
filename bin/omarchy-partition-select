@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# Interactive selector that lists disks plus their partitions and returns the chosen device path.
+# Defaults to all block devices but accepts optional device arguments to limit the list.
+
+set -euo pipefail
+
+if command -v gum >/dev/null 2>&1; then
+  selector_cmd=("gum" "choose" "--header" "Select install target (disk or partition)")
+else
+  echo "Error: gum is required for omarchy-partition-select" >&2
+  exit 1
+fi
+
+if ! command -v lsblk >/dev/null 2>&1; then
+  echo "Error: lsblk is required for omarchy-partition-select" >&2
+  exit 1
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "Error: jq is required for omarchy-partition-select" >&2
+  exit 1
+fi
+
+# Allow passing specific block devices (useful for testing)
+if (($# > 0)); then
+  devices=("$@")
+else
+  mapfile -t devices < <(lsblk -dpno PATH | grep -E '/dev/(sd|hd|vd|nvme|mmcblk|xv)')
+fi
+
+if ((${#devices[@]} == 0)); then
+  echo "No block devices found." >&2
+  exit 1
+fi
+
+# Gather metadata for the requested devices using lsblk JSON for easier traversal
+lsblk_columns="PATH,NAME,TYPE,SIZE,FSTYPE,MOUNTPOINT,LABEL,MODEL,PARTLABEL,PKNAME"
+lsblk_json=$(lsblk -J -o "$lsblk_columns" "${devices[@]}")
+
+# Prepare formatted lines for gum choose
+mapfile -t options < <(
+  jq -r '
+    def fmt_size($val):
+      if $val == null or $val == "" then "" else " (" + $val + ")" end;
+    def fmt_model($val):
+      if $val == null or $val == "" then "" else " - " + $val end;
+    def fmt_fs($part):
+      if $part.fstype != null and $part.fstype != "" then ", " + $part.fstype else "" end;
+    def fmt_mount($part):
+      if $part.mountpoint != null and $part.mountpoint != "" then ", mounted at " + $part.mountpoint else "" end;
+    def fmt_label($part):
+      if $part.partlabel != null and $part.partlabel != "" then " [" + $part.partlabel + "]"
+      elif $part.label != null and $part.label != "" then " [" + $part.label + "]"
+      else "" end;
+
+    .blockdevices[]
+    | select(.type == "disk")
+    | . as $disk
+    | ($disk.path + fmt_size($disk.size) + fmt_model($disk.model))
+    , (($disk.children // [])
+        | to_entries[]
+        | . as $entry
+        | $entry.value as $part
+        | ($disk.path) as $disk_path
+        | ($entry.key == ( ( ($disk.children // []) | length) - 1 )) as $is_last
+        | (if $is_last then "  └─ " else "  ├─ " end)
+          + ($part.path
+             + fmt_size($part.size)
+             + fmt_fs($part)
+             + fmt_mount($part)
+             + fmt_label($part)))
+  ' <<<"$lsblk_json"
+)
+
+if ((${#options[@]} == 0)); then
+  echo "No disks or partitions found to display." >&2
+  exit 1
+fi
+
+selected="$("${selector_cmd[@]}" "${options[@]}")" || exit 1
+
+# Device path is always the first token on the line
+printf "%s\n" "$selected" | awk '{print $1}'
