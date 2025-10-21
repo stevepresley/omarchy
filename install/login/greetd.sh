@@ -6,6 +6,13 @@
 # Install greetd display manager with regreet greeter and sway compositor
 sudo pacman -S --noconfirm --needed greetd greetd-regreet sway
 
+# Prepare Omarchy branding assets for the greeter
+sudo mkdir -p /usr/local/share/omarchy/branding
+GREETER_BG_SOURCE="$OMARCHY_INSTALL/../themes/tokyo-night/backgrounds/default.png"
+if [[ -f "$GREETER_BG_SOURCE" ]]; then
+  sudo install -m 0644 "$GREETER_BG_SOURCE" /usr/local/share/omarchy/branding/greeter-background.png
+fi
+
 # Create greetd configuration
 sudo mkdir -p /etc/greetd
 sudo tee /etc/greetd/config.toml <<'EOF' >/dev/null
@@ -42,6 +49,7 @@ sudo chmod +x /usr/local/bin/greetd-wayvnc-attach
 sudo tee /etc/greetd/sway-config <<'EOF' >/dev/null
 # Sway config for greetd greeter
 # Attaches wayvnc to this compositor (for VNC login screen access)
+output * background /usr/local/share/omarchy/branding/greeter-background.png fill
 exec /usr/local/bin/greetd-wayvnc-attach
 
 # Launch regreet graphical login prompt
@@ -55,6 +63,37 @@ greeter ALL=(ALL) NOPASSWD: /usr/bin/wayvncctl
 EOF
 
 sudo chmod 0440 /etc/sudoers.d/greeter-wayvnc
+
+# Provide Omarchy-specific session entry and hide upstream Hyprland/Sway choices
+sudo mkdir -p /usr/local/share/wayland-sessions
+sudo tee /usr/local/share/wayland-sessions/omarchy-advanced.desktop <<'EOF' >/dev/null
+[Desktop Entry]
+Name=Omarchy Advanced
+Comment=Omarchy Advanced Hyprland session
+Exec=uwsm start -- hyprland.desktop
+Type=Application
+DesktopNames=Omarchy-Advanced
+EOF
+
+sudo tee /usr/local/share/wayland-sessions/hyprland.desktop <<'EOF' >/dev/null
+[Desktop Entry]
+Name=Hyprland (upstream)
+Comment=Hidden upstream Hyprland session
+Exec=Hyprland
+Type=Application
+Hidden=true
+NoDisplay=true
+EOF
+
+sudo tee /usr/local/share/wayland-sessions/sway.desktop <<'EOF' >/dev/null
+[Desktop Entry]
+Name=Sway (upstream)
+Comment=Hidden upstream Sway session
+Exec=sway
+Type=Application
+Hidden=true
+NoDisplay=true
+EOF
 
 # Enable greetd service
 sudo systemctl enable greetd.service
