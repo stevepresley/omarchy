@@ -53,7 +53,7 @@ EOF
 sudo chmod +x /usr/local/bin/greetd-wayvnc-attach
 
 # Create Sway configuration for greeter
-# This runs regreet (graphical greeter) and wayvnc attach script
+# This runs regreet (graphical login) and wayvnc attach script
 sudo tee /etc/greetd/sway-config <<'EOF' >/dev/null
 # Sway config for greetd greeter
 # Attaches wayvnc to this compositor (for VNC login screen access)
@@ -63,8 +63,8 @@ output * bg /usr/local/share/omarchy/branding/greeter-background.png fill
 
 exec /usr/local/bin/greetd-wayvnc-attach
 
-# Launch regreet graphical login prompt
-exec regreet
+# Launch regreet with Omarchy Advanced session pre-selected (no session picker needed)
+exec regreet --sessions omarchy-advanced
 EOF
 
 # Add sudoers rule to allow greeter user to run wayvncctl without password
