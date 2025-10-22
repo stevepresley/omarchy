@@ -58,12 +58,8 @@ sudo tee /etc/greetd/sway-config <<'EOF' >/dev/null
 # Sway config for greetd greeter
 # Attaches wayvnc to this compositor (for VNC login screen access)
 
-# Set background if available, otherwise use solid color fallback
-if test -f /usr/local/share/omarchy/branding/greeter-background.png; then
-  output * bg /usr/local/share/omarchy/branding/greeter-background.png fill
-else
-  output * bg "#1a1b26" solid_color
-end
+# Set background image (if it doesn't exist, Sway silently ignores it and uses default)
+output * bg /usr/local/share/omarchy/branding/greeter-background.png fill
 
 exec /usr/local/bin/greetd-wayvnc-attach
 
