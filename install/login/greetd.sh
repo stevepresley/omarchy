@@ -8,9 +8,17 @@ sudo pacman -S --noconfirm --needed greetd greetd-regreet sway
 
 # Prepare Omarchy branding assets for the greeter
 sudo mkdir -p /usr/local/share/omarchy/branding
-GREETER_BG_SOURCE="$OMARCHY_INSTALL/../themes/tokyo-night/backgrounds/default.png"
+# Use tokyo-night scenery background (primary choice)
+GREETER_BG_SOURCE="$OMARCHY_INSTALL/../themes/tokyo-night/backgrounds/1-scenery-pink-lakeside-sunset-lake-landscape-scenic-panorama-7680x3215-144.png"
+if [[ ! -f "$GREETER_BG_SOURCE" ]]; then
+  # Fallback to any available background if primary doesn't exist
+  GREETER_BG_SOURCE=$(find "$OMARCHY_INSTALL/../themes/tokyo-night/backgrounds/" -type f \( -name "*.png" -o -name "*.jpg" \) | head -1)
+fi
 if [[ -f "$GREETER_BG_SOURCE" ]]; then
   sudo install -m 0644 "$GREETER_BG_SOURCE" /usr/local/share/omarchy/branding/greeter-background.png
+else
+  # If no background available, create a solid color fallback
+  echo "Warning: No greeter background found, using solid color fallback"
 fi
 
 # Create greetd configuration
@@ -49,7 +57,14 @@ sudo chmod +x /usr/local/bin/greetd-wayvnc-attach
 sudo tee /etc/greetd/sway-config <<'EOF' >/dev/null
 # Sway config for greetd greeter
 # Attaches wayvnc to this compositor (for VNC login screen access)
-output * bg /usr/local/share/omarchy/branding/greeter-background.png fill
+
+# Set background if available, otherwise use solid color fallback
+if test -f /usr/local/share/omarchy/branding/greeter-background.png; then
+  output * bg /usr/local/share/omarchy/branding/greeter-background.png fill
+else
+  output * bg "#1a1b26" solid_color
+end
+
 exec /usr/local/bin/greetd-wayvnc-attach
 
 # Launch regreet graphical login prompt
