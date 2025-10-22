@@ -49,7 +49,7 @@ sudo chmod +x /usr/local/bin/greetd-wayvnc-attach
 sudo tee /etc/greetd/sway-config <<'EOF' >/dev/null
 # Sway config for greetd greeter
 # Attaches wayvnc to this compositor (for VNC login screen access)
-output * background /usr/local/share/omarchy/branding/greeter-background.png fill
+output * bg /usr/local/share/omarchy/branding/greeter-background.png fill
 exec /usr/local/bin/greetd-wayvnc-attach
 
 # Launch regreet graphical login prompt
@@ -65,8 +65,8 @@ EOF
 sudo chmod 0440 /etc/sudoers.d/greeter-wayvnc
 
 # Provide Omarchy-specific session entry and hide upstream Hyprland/Sway choices
-sudo mkdir -p /usr/local/share/wayland-sessions
-sudo tee /usr/local/share/wayland-sessions/omarchy-advanced.desktop <<'EOF' >/dev/null
+sudo mkdir -p /usr/share/wayland-sessions
+sudo tee /usr/share/wayland-sessions/omarchy-advanced.desktop <<'EOF' >/dev/null
 [Desktop Entry]
 Name=Omarchy Advanced
 Comment=Omarchy Advanced Hyprland session
@@ -75,7 +75,10 @@ Type=Application
 DesktopNames=Omarchy-Advanced
 EOF
 
-sudo tee /usr/local/share/wayland-sessions/hyprland.desktop <<'EOF' >/dev/null
+if [[ -f /usr/share/wayland-sessions/hyprland.desktop && ! -f /usr/share/wayland-sessions/hyprland.desktop.orig ]]; then
+  sudo cp /usr/share/wayland-sessions/hyprland.desktop /usr/share/wayland-sessions/hyprland.desktop.orig
+fi
+sudo tee /usr/share/wayland-sessions/hyprland.desktop <<'EOF' >/dev/null
 [Desktop Entry]
 Name=Hyprland (upstream)
 Comment=Hidden upstream Hyprland session
@@ -85,7 +88,10 @@ Hidden=true
 NoDisplay=true
 EOF
 
-sudo tee /usr/local/share/wayland-sessions/sway.desktop <<'EOF' >/dev/null
+if [[ -f /usr/share/wayland-sessions/sway.desktop && ! -f /usr/share/wayland-sessions/sway.desktop.orig ]]; then
+  sudo cp /usr/share/wayland-sessions/sway.desktop /usr/share/wayland-sessions/sway.desktop.orig
+fi
+sudo tee /usr/share/wayland-sessions/sway.desktop <<'EOF' >/dev/null
 [Desktop Entry]
 Name=Sway (upstream)
 Comment=Hidden upstream Sway session
