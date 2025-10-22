@@ -79,45 +79,45 @@ EOF
 
 sudo chmod 0440 /etc/sudoers.d/greeter-wayvnc
 
-# Provide Omarchy-specific session entry and hide upstream Hyprland/Sway choices
+# Provide Omarchy-specific session entry and remove upstream Hyprland/Sway choices
+# (regreet may not respect Hidden=true, so we delete unwanted sessions entirely)
 sudo mkdir -p /usr/share/wayland-sessions
+
+# Create Omarchy session
 sudo tee /usr/share/wayland-sessions/omarchy-advanced.desktop <<'EOF' >/dev/null
 [Desktop Entry]
 Name=Omarchy Advanced
 Comment=Omarchy Advanced Hyprland session
 Exec=uwsm start -- hyprland.desktop
 Type=Application
-DesktopNames=Omarchy-Advanced
+Categories=System
 EOF
 
+# Remove upstream sessions entirely (they may override our branding)
+# Backup originals first if not already backed up
 if [[ -f /usr/share/wayland-sessions/hyprland.desktop && ! -f /usr/share/wayland-sessions/hyprland.desktop.orig ]]; then
   sudo cp /usr/share/wayland-sessions/hyprland.desktop /usr/share/wayland-sessions/hyprland.desktop.orig
 fi
-sudo tee /usr/share/wayland-sessions/hyprland.desktop <<'EOF' >/dev/null
-[Desktop Entry]
-Name=Hyprland (upstream)
-Comment=Hidden upstream Hyprland session
-Exec=Hyprland
-Type=Application
-Hidden=true
-NoDisplay=true
-EOF
+sudo rm -f /usr/share/wayland-sessions/hyprland.desktop
 
 if [[ -f /usr/share/wayland-sessions/sway.desktop && ! -f /usr/share/wayland-sessions/sway.desktop.orig ]]; then
   sudo cp /usr/share/wayland-sessions/sway.desktop /usr/share/wayland-sessions/sway.desktop.orig
 fi
-sudo tee /usr/share/wayland-sessions/sway.desktop <<'EOF' >/dev/null
-[Desktop Entry]
-Name=Sway (upstream)
-Comment=Hidden upstream Sway session
-Exec=sway
-Type=Application
-Hidden=true
-NoDisplay=true
+sudo rm -f /usr/share/wayland-sessions/sway.desktop
+
+# Also check for any other potential session files that might interfere
+# (e.g., if hyprland package gets reinstalled, it may recreate hyprland.desktop)
+# Create a systemd override that cleans up unwanted sessions on boot
+sudo mkdir -p /etc/systemd/system/greetd.service.d
+sudo tee /etc/systemd/system/greetd.service.d/remove-unwanted-sessions.conf <<'EOF' >/dev/null
+[Service]
+ExecStartPre=/bin/bash -c 'rm -f /usr/share/wayland-sessions/hyprland.desktop /usr/share/wayland-sessions/sway.desktop'
 EOF
 
 # Enable greetd service
 sudo systemctl enable greetd.service
+sudo systemctl daemon-reload
 
 echo "✓ greetd display manager configured with regreet greeter"
 echo "  VNC clients will see login screen via wayvnc"
+echo "  Only 'Omarchy Advanced' session will appear in greeter"
