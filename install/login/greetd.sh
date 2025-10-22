@@ -89,49 +89,42 @@ Type=Application
 Categories=System
 EOF
 
-# Remove upstream sessions by replacing them with disabled versions
-# This prevents packages from reinstalling active versions
-if [[ -f /usr/share/wayland-sessions/hyprland.desktop ]]; then
-  sudo cp /usr/share/wayland-sessions/hyprland.desktop /usr/share/wayland-sessions/hyprland.desktop.orig
-  # Replace with disabled version (Hidden=true, NoDisplay=true)
-  sudo tee /usr/share/wayland-sessions/hyprland.desktop <<'DISABLED_SESSION' >/dev/null
-[Desktop Entry]
-Hidden=true
-NoDisplay=true
-DISABLED_SESSION
-fi
+# Delete ALL upstream session files except our Omarchy Advanced session
+# This ensures regreet only shows our custom session
+sudo rm -f /usr/share/wayland-sessions/hyprland*.desktop
+sudo rm -f /usr/share/wayland-sessions/sway*.desktop
+sudo rm -f /usr/share/wayland-sessions/gnome*.desktop
+sudo rm -f /usr/share/wayland-sessions/kde*.desktop
+sudo rm -f /usr/share/wayland-sessions/weston*.desktop
+sudo rm -f /usr/share/wayland-sessions/cinnamon*.desktop
+sudo rm -f /usr/share/wayland-sessions/xfce*.desktop
 
-if [[ -f /usr/share/wayland-sessions/sway.desktop ]]; then
-  sudo cp /usr/share/wayland-sessions/sway.desktop /usr/share/wayland-sessions/sway.desktop.orig
-  # Replace with disabled version (Hidden=true, NoDisplay=true)
-  sudo tee /usr/share/wayland-sessions/sway.desktop <<'DISABLED_SESSION' >/dev/null
-[Desktop Entry]
-Hidden=true
-NoDisplay=true
-DISABLED_SESSION
-fi
-
-# Create systemd override that ensures disabled sessions stay in place
+# Create systemd override that removes ALL unwanted sessions on every boot
+# This handles cases where packages reinstall session files
 sudo mkdir -p /etc/systemd/system/greetd.service.d
 sudo tee /etc/systemd/system/greetd.service.d/remove-unwanted-sessions.conf <<'EOF' >/dev/null
 [Service]
-ExecStartPre=/bin/bash -c 'for f in /usr/share/wayland-sessions/{hyprland,sway}.desktop; do if [ -f "$f" ] && ! grep -q "^Hidden=true" "$f"; then echo "[Desktop Entry]" > "$f"; echo "Hidden=true" >> "$f"; echo "NoDisplay=true" >> "$f"; fi; done'
+ExecStartPre=/bin/bash -c 'rm -f /usr/share/wayland-sessions/hyprland*.desktop /usr/share/wayland-sessions/sway*.desktop /usr/share/wayland-sessions/gnome*.desktop /usr/share/wayland-sessions/kde*.desktop /usr/share/wayland-sessions/weston*.desktop /usr/share/wayland-sessions/cinnamon*.desktop /usr/share/wayland-sessions/xfce*.desktop'
 EOF
 
-# Create a pacman hook to restore disabled sessions if packages reinstall them
+# Create a pacman hook to remove unwanted sessions if packages get updated
 sudo mkdir -p /etc/pacman.d/hooks
-sudo tee /etc/pacman.d/hooks/omarchy-disable-unwanted-sessions.hook <<'EOF' >/dev/null
+sudo tee /etc/pacman.d/hooks/omarchy-remove-unwanted-sessions.hook <<'EOF' >/dev/null
 [Trigger]
 Type = Package
 Operation = Install
 Operation = Upgrade
 Target = hyprland
+Target = hyprland-uwsm
 Target = sway
+Target = gnome-shell
+Target = kde-plasma-desktop
+Target = xfce4-session
 
 [Action]
-Description = Disabling unwanted Wayland sessions (keeping Omarchy Advanced only)
+Description = Removing unwanted Wayland sessions (keeping Omarchy Advanced only)
 When = PostTransaction
-Exec = /bin/bash -c 'for f in /usr/share/wayland-sessions/{hyprland,sway}.desktop; do if [ -f "$f" ] && ! grep -q "^Hidden=true" "$f"; then echo "[Desktop Entry]" > "$f"; echo "Hidden=true" >> "$f"; echo "NoDisplay=true" >> "$f"; fi; done'
+Exec = /bin/bash -c 'rm -f /usr/share/wayland-sessions/hyprland*.desktop /usr/share/wayland-sessions/sway*.desktop /usr/share/wayland-sessions/gnome*.desktop /usr/share/wayland-sessions/kde*.desktop /usr/share/wayland-sessions/weston*.desktop /usr/share/wayland-sessions/cinnamon*.desktop /usr/share/wayland-sessions/xfce*.desktop'
 EOF
 
 # Enable greetd service
