@@ -89,7 +89,7 @@ Type=Application
 Categories=System
 EOF
 
-# Remove upstream sessions entirely (they may override our branding)
+# Remove upstream sessions entirely and prevent them from reappearing
 # Backup originals first if not already backed up
 if [[ -f /usr/share/wayland-sessions/hyprland.desktop && ! -f /usr/share/wayland-sessions/hyprland.desktop.orig ]]; then
   sudo cp /usr/share/wayland-sessions/hyprland.desktop /usr/share/wayland-sessions/hyprland.desktop.orig
@@ -101,13 +101,29 @@ if [[ -f /usr/share/wayland-sessions/sway.desktop && ! -f /usr/share/wayland-ses
 fi
 sudo rm -f /usr/share/wayland-sessions/sway.desktop
 
-# Also check for any other potential session files that might interfere
-# (e.g., if hyprland package gets reinstalled, it may recreate hyprland.desktop)
-# Create a systemd override that cleans up unwanted sessions on boot
+# Create systemd override that removes unwanted sessions before greetd starts
+# This handles cases where packages reinstall the session files
 sudo mkdir -p /etc/systemd/system/greetd.service.d
 sudo tee /etc/systemd/system/greetd.service.d/remove-unwanted-sessions.conf <<'EOF' >/dev/null
 [Service]
 ExecStartPre=/bin/bash -c 'rm -f /usr/share/wayland-sessions/hyprland.desktop /usr/share/wayland-sessions/sway.desktop'
+EOF
+
+# Also create a pacman hook to remove unwanted sessions if packages get updated
+# This ensures they stay removed even if hyprland/sway packages are reinstalled
+sudo mkdir -p /etc/pacman.d/hooks
+sudo tee /etc/pacman.d/hooks/omarchy-remove-unwanted-sessions.hook <<'EOF' >/dev/null
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Target = hyprland
+Target = sway
+
+[Action]
+Description = Removing unwanted Wayland sessions (keeping Omarchy Advanced only)
+When = PostTransaction
+Exec = /bin/bash -c 'rm -f /usr/share/wayland-sessions/hyprland.desktop /usr/share/wayland-sessions/sway.desktop'
 EOF
 
 # Enable greetd service
