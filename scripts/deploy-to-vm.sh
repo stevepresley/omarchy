@@ -1,17 +1,17 @@
 #!/bin/bash
 # Deploy Omarchy Advanced changes to running VM for testing
 # Usage: ./scripts/deploy-to-vm.sh <vm-ip-address> [ssh-user]
-# Example: ./scripts/deploy-to-vm.sh 192.168.50.73 root
+# Example: ./scripts/deploy-to-vm.sh 192.168.50.73 steve
 
 set -e
 
 # Get VM IP and SSH user from arguments
 VM_IP="${1:-}"
-SSH_USER="${2:-root}"
+SSH_USER="${2:-steve}"
 
 if [[ -z "$VM_IP" ]]; then
   echo "Usage: $0 <vm-ip-address> [ssh-user]"
-  echo "Example: $0 192.168.50.73 root"
+  echo "Example: $0 192.168.50.73 steve"
   exit 1
 fi
 
