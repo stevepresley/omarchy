@@ -65,8 +65,8 @@ EOF
 
 sudo chmod 0440 /etc/sudoers.d/greeter-wayvnc
 
-# Provide Omarchy-specific session entry and remove upstream Hyprland/Sway choices
-# (regreet may not respect Hidden=true, so we delete unwanted sessions entirely)
+# Provide Omarchy-specific session entry and hide upstream Hyprland/Sway choices
+# We create the session files with Hidden=true so UWSM can find them but regreet won't display them
 sudo mkdir -p /usr/share/wayland-sessions
 
 # Create Omarchy session
@@ -79,27 +79,43 @@ Type=Application
 Categories=System
 EOF
 
-# Delete ALL upstream session files except our Omarchy Advanced session
-# This ensures regreet only shows our custom session
-sudo rm -f /usr/share/wayland-sessions/hyprland*.desktop
-sudo rm -f /usr/share/wayland-sessions/sway*.desktop
-sudo rm -f /usr/share/wayland-sessions/gnome*.desktop
-sudo rm -f /usr/share/wayland-sessions/kde*.desktop
-sudo rm -f /usr/share/wayland-sessions/weston*.desktop
-sudo rm -f /usr/share/wayland-sessions/cinnamon*.desktop
-sudo rm -f /usr/share/wayland-sessions/xfce*.desktop
-
-# Create systemd override that removes ALL unwanted sessions on every boot
-# This handles cases where packages reinstall session files
-sudo mkdir -p /etc/systemd/system/greetd.service.d
-sudo tee /etc/systemd/system/greetd.service.d/remove-unwanted-sessions.conf <<'EOF' >/dev/null
-[Service]
-ExecStartPre=/bin/bash -c 'rm -f /usr/share/wayland-sessions/hyprland*.desktop /usr/share/wayland-sessions/sway*.desktop /usr/share/wayland-sessions/gnome*.desktop /usr/share/wayland-sessions/kde*.desktop /usr/share/wayland-sessions/weston*.desktop /usr/share/wayland-sessions/cinnamon*.desktop /usr/share/wayland-sessions/xfce*.desktop'
+# Create hidden Hyprland session files so UWSM can find them but regreet won't display them
+sudo tee /usr/share/wayland-sessions/hyprland.desktop <<'EOF' >/dev/null
+[Desktop Entry]
+Name=Hyprland
+Exec=uwsm start -- hyprland
+Type=Application
+Hidden=true
 EOF
 
-# Create a pacman hook to remove unwanted sessions if packages get updated
+sudo tee /usr/share/wayland-sessions/hyprland-uwsm.desktop <<'EOF' >/dev/null
+[Desktop Entry]
+Name=Hyprland (uwsm-managed)
+Exec=uwsm start -- hyprland
+Type=Application
+Hidden=true
+EOF
+
+# Create hidden Sway session file
+sudo tee /usr/share/wayland-sessions/sway.desktop <<'EOF' >/dev/null
+[Desktop Entry]
+Name=Sway
+Exec=sway
+Type=Application
+Hidden=true
+EOF
+
+# Create systemd override that ensures Hidden=true on every boot
+# This handles cases where packages reinstall session files without Hidden=true
+sudo mkdir -p /etc/systemd/system/greetd.service.d
+sudo tee /etc/systemd/system/greetd.service.d/hide-unwanted-sessions.conf <<'EOF' >/dev/null
+[Service]
+ExecStartPre=/bin/bash -c 'for f in /usr/share/wayland-sessions/hyprland.desktop /usr/share/wayland-sessions/hyprland-uwsm.desktop /usr/share/wayland-sessions/sway.desktop; do [ -f "$f" ] && grep -q "^Hidden=true" "$f" || (sed -i "/^Type=/a Hidden=true" "$f" 2>/dev/null || echo "[Desktop Entry]\nHidden=true" >> "$f"); done'
+EOF
+
+# Create a pacman hook to ensure Hidden=true if packages get updated
 sudo mkdir -p /etc/pacman.d/hooks
-sudo tee /etc/pacman.d/hooks/omarchy-remove-unwanted-sessions.hook <<'EOF' >/dev/null
+sudo tee /etc/pacman.d/hooks/omarchy-hide-unwanted-sessions.hook <<'EOF' >/dev/null
 [Trigger]
 Type = Package
 Operation = Install
@@ -107,14 +123,11 @@ Operation = Upgrade
 Target = hyprland
 Target = hyprland-uwsm
 Target = sway
-Target = gnome-shell
-Target = kde-plasma-desktop
-Target = xfce4-session
 
 [Action]
-Description = Removing unwanted Wayland sessions (keeping Omarchy Advanced only)
+Description = Hiding unwanted Wayland sessions (keeping only Omarchy Advanced visible)
 When = PostTransaction
-Exec = /bin/bash -c 'rm -f /usr/share/wayland-sessions/hyprland*.desktop /usr/share/wayland-sessions/sway*.desktop /usr/share/wayland-sessions/gnome*.desktop /usr/share/wayland-sessions/kde*.desktop /usr/share/wayland-sessions/weston*.desktop /usr/share/wayland-sessions/cinnamon*.desktop /usr/share/wayland-sessions/xfce*.desktop'
+Exec = /bin/bash -c 'for f in /usr/share/wayland-sessions/hyprland.desktop /usr/share/wayland-sessions/hyprland-uwsm.desktop /usr/share/wayland-sessions/sway.desktop; do [ -f "$f" ] && grep -q "^Hidden=true" "$f" || sed -i "/^Type=/a Hidden=true" "$f"; done'
 EOF
 
 # Enable greetd service
