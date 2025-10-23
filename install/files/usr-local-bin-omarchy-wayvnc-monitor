@@ -1,9 +1,9 @@
 #!/bin/bash
 # wayvnc Display Attachment Monitor
+# Shared system script (runs as root via systemd service)
 # Continuously keeps wayvnc attached to the currently active Wayland display
 # Follows user login/logout: greeter Sway on boot, user's Hyprland after login
 # On VNC disconnect: automatically re-attaches to current active display
-# Usage: omarchy-wayvnc-disconnect-lock (name kept for compatibility)
 
 set -e
 
@@ -46,14 +46,30 @@ handle_disconnect() {
 
 # Main loop: monitor wayvnc events and keep display attachment current
 echo "Starting wayvnc display attachment monitor..."
-wayvncctl --wait --reconnect --json event-receive 2>/dev/null | while read -r event; do
-  # Detect client disconnect - lock screen if in user context
-  if echo "$event" | grep -q '"method":"client-disconnected"'; then
-    handle_disconnect
-  fi
 
-  # After any event (connect/disconnect), ensure wayvnc is attached to current active display
-  # This handles: VNC disconnect + reconnect, user logout + back to greeter, etc.
-  sleep 0.5  # Small delay to let display state stabilize
-  attach_to_current_display 2>/dev/null || true
+# Immediately attach to current active display on startup
+attach_to_current_display 2>/dev/null || true
+
+while true; do
+  # Start event monitoring with reconnect logic
+  # The --wait and --reconnect flags make wayvncctl wait and reconnect if wayvnc restarts
+  wayvncctl --wait --reconnect --json event-receive 2>/dev/null | while read -r event; do
+    # Detect client disconnect - lock screen if in user context
+    if echo "$event" | grep -q '"method":"client-disconnected"'; then
+      handle_disconnect
+    fi
+
+    # After a disconnect event, wait for display state to stabilize, then re-attach
+    if echo "$event" | grep -q '"method":"client-disconnected"'; then
+      sleep 1  # Wait for display state to stabilize after disconnect
+      attach_to_current_display 2>/dev/null || true
+    elif echo "$event" | grep -q '"method":"client-connected"'; then
+      # On reconnect, ensure we're attached to the right display
+      attach_to_current_display 2>/dev/null || true
+    fi
+  done
+
+  # If event-receive exits (wayvnc crashed or restarted), wait and retry
+  sleep 2
+  echo "Reconnecting to wayvnc..."
 done
