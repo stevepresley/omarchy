@@ -1,5 +1,6 @@
 #!/bin/bash
 # Deploy Omarchy Advanced changes to running VM for testing
+# This script copies files to the VM, then shows you commands to run on the VM
 # Usage: ./scripts/deploy-to-vm.sh <vm-ip-address> [ssh-user]
 # Example: ./scripts/deploy-to-vm.sh 192.168.50.73 steve
 
@@ -24,99 +25,49 @@ fi
 
 echo "✓ SSH connection successful"
 
-# Get the Omarchy installation path on VM
-OMARCHY_PATH=$(ssh "$SSH_USER@$VM_IP" 'echo ${OMARCHY_PATH:-$HOME/.local/share/omarchy}' 2>/dev/null)
-echo "Omarchy path on VM: $OMARCHY_PATH"
-
-# Copy deployment files to VM first
+# Copy deployment files to VM
 echo ""
 echo "Copying deployment files to VM..."
 scp install/files/usr-local-bin-omarchy-wayvnc-monitor "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor" >/dev/null
 scp config/systemd/system/omarchy-wayvnc-monitor.service "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor.service" >/dev/null
-echo "✓ Files copied to /tmp"
+echo "✓ Files copied to /tmp on VM"
 
-# Create a single SSH session that runs all cleanup and deployment commands
-# With SSH keys, sudo should work without password prompts if configured for NOPASSWD
-echo ""
-echo "Running cleanup and deployment on VM..."
-ssh "$SSH_USER@$VM_IP" sudo bash << 'DEPLOY_SCRIPT'
-set -e
-
-# Cleanup: Kill old processes
-echo "Cleaning up old monitor processes..."
-pkill -9 -f 'omarchy-wayvnc-disconnect-lock' || true
-pkill -9 -f 'omarchy-wayvnc-monitor' || true
-systemctl --user stop omarchy-wayvnc-monitor.service 2>/dev/null || true
-systemctl --user disable omarchy-wayvnc-monitor.service 2>/dev/null || true
-systemctl stop omarchy-wayvnc-monitor.service 2>/dev/null || true
-echo "✓ Old processes killed and user service disabled"
-
-# Ensure /tmp files are in place (they should be from scp)
-echo ""
-echo "Deploying new wayvnc monitor script..."
-if [[ -f /tmp/omarchy-wayvnc-monitor ]]; then
-  cp /tmp/omarchy-wayvnc-monitor /usr/local/bin/omarchy-wayvnc-monitor
-  chmod +x /usr/local/bin/omarchy-wayvnc-monitor
-  echo "✓ New system script deployed to /usr/local/bin/"
-else
-  echo "ERROR: /tmp/omarchy-wayvnc-monitor not found!"
-  exit 1
-fi
-
-# Deploy systemd service
-echo ""
-echo "Deploying systemd service..."
-if [[ -f /tmp/omarchy-wayvnc-monitor.service ]]; then
-  cp /tmp/omarchy-wayvnc-monitor.service /etc/systemd/system/
-  chmod 644 /etc/systemd/system/omarchy-wayvnc-monitor.service
-  echo "✓ Systemd service deployed"
-else
-  echo "ERROR: /tmp/omarchy-wayvnc-monitor.service not found!"
-  exit 1
-fi
-
-# Enable the monitor service
-echo ""
-echo "Enabling wayvnc disconnect monitor..."
-systemctl daemon-reload
-systemctl enable --now omarchy-wayvnc-monitor.service
-echo "✓ wayvnc disconnect monitor enabled (running as root system service)"
-DEPLOY_SCRIPT
-
-# Show testing instructions
+# Show instructions for completing deployment on the VM
 echo ""
 echo "=========================================="
-echo "Deployment Complete!"
+echo "Files Ready for Deployment"
 echo "=========================================="
 echo ""
-echo "Scripts deployed:"
-echo "  - omarchy-wayvnc-disconnect-lock (monitors wayvnc events)"
-echo "  - omarchy-wayvnc-reattach-greeter (re-attaches to greeter)"
-echo "  - omarchy-show-splash (login transition splash screen)"
+echo "The following files are now in /tmp on your VM:"
+echo "  /tmp/omarchy-wayvnc-monitor"
+echo "  /tmp/omarchy-wayvnc-monitor.service"
 echo ""
-echo "Testing Instructions:"
+echo "NEXT STEPS - Run these commands ON YOUR VM terminal:"
 echo ""
-echo "Test 1: VNC Disconnect Lock (Issue 24)"
-echo "  1. Connect to VM via VNC"
-echo "  2. Login with credentials"
-echo "  3. Verify monitor is running:"
-echo "     ssh $SSH_USER@$VM_IP 'sudo systemctl status omarchy-wayvnc-monitor.service'"
-echo "  4. Disconnect VNC"
-echo "  5. Wait 2 seconds, reconnect"
-echo "  6. EXPECTED: See login prompt (greeter), not unlocked session"
+echo "1. Kill old processes:"
+echo "   sudo pkill -9 -f 'omarchy-wayvnc-disconnect-lock'"
+echo "   sudo pkill -9 -f 'omarchy-wayvnc-monitor'"
 echo ""
-echo "Test 2: wayvnc Monitor Events (Issue 24)"
-echo "  Check monitor logs:"
-echo "  ssh $SSH_USER@$VM_IP 'sudo journalctl -u omarchy-wayvnc-monitor.service -f'"
+echo "2. Stop and disable old user service:"
+echo "   systemctl --user stop omarchy-wayvnc-monitor.service 2>/dev/null || true"
+echo "   systemctl --user disable omarchy-wayvnc-monitor.service 2>/dev/null || true"
 echo ""
-echo "Test 3: Session Exit Re-attach (Issue 26)"
-echo "  1. Login via greeter (console or VNC)"
-echo "  2. Open menu: SUPER+ESC"
-echo "  3. Select 'Relaunch'"
-echo "  4. On console: Greeter appears"
-echo "  5. On VNC: EXPECTED - should see greeter (not grey screen)"
+echo "3. Stop system service:"
+echo "   sudo systemctl stop omarchy-wayvnc-monitor.service 2>/dev/null || true"
 echo ""
-echo "Test 4: Check Splash Script"
-echo "  ls -la $OMARCHY_PATH/bin/omarchy-show-splash"
+echo "4. Deploy new monitor script:"
+echo "   sudo cp /tmp/omarchy-wayvnc-monitor /usr/local/bin/omarchy-wayvnc-monitor"
+echo "   sudo chmod +x /usr/local/bin/omarchy-wayvnc-monitor"
+echo ""
+echo "5. Deploy systemd service:"
+echo "   sudo cp /tmp/omarchy-wayvnc-monitor.service /etc/systemd/system/"
+echo "   sudo chmod 644 /etc/systemd/system/omarchy-wayvnc-monitor.service"
+echo ""
+echo "6. Enable and start the service:"
+echo "   sudo systemctl daemon-reload"
+echo "   sudo systemctl enable --now omarchy-wayvnc-monitor.service"
+echo ""
+echo "7. Verify it's running:"
+echo "   ps aux | grep omarchy-wayvnc | grep -v grep"
 echo ""
 echo "=========================================="
