@@ -32,44 +32,12 @@ scp install/files/usr-local-bin-omarchy-wayvnc-monitor "$SSH_USER@$VM_IP:/tmp/om
 scp config/systemd/system/omarchy-wayvnc-monitor.service "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor.service" >/dev/null
 echo "✓ Files copied to /tmp on VM"
 
-# Create deployment script on VM
+# Copy the deployment helper script
 echo ""
-echo "Creating deployment script on VM..."
-ssh "$SSH_USER@$VM_IP" cat > /tmp/deploy-wayvnc.sh << 'DEPLOY_SCRIPT'
-#!/bin/bash
-set -e
-
-echo "Killing old processes..."
-sudo pkill -9 -f 'omarchy-wayvnc-disconnect-lock' || true
-sudo pkill -9 -f 'omarchy-wayvnc-monitor' || true
-
-echo "Stopping and disabling old user service..."
-systemctl --user stop omarchy-wayvnc-monitor.service 2>/dev/null || true
-systemctl --user disable omarchy-wayvnc-monitor.service 2>/dev/null || true
-
-echo "Stopping system service..."
-sudo systemctl stop omarchy-wayvnc-monitor.service 2>/dev/null || true
-
-echo "Deploying new monitor script..."
-sudo cp /tmp/omarchy-wayvnc-monitor /usr/local/bin/omarchy-wayvnc-monitor
-sudo chmod +x /usr/local/bin/omarchy-wayvnc-monitor
-
-echo "Deploying systemd service..."
-sudo cp /tmp/omarchy-wayvnc-monitor.service /etc/systemd/system/
-sudo chmod 644 /etc/systemd/system/omarchy-wayvnc-monitor.service
-
-echo "Enabling and starting service..."
-sudo systemctl daemon-reload
-sudo systemctl enable --now omarchy-wayvnc-monitor.service
-
-echo "Verifying..."
-ps aux | grep omarchy-wayvnc | grep -v grep
-
-echo "✓ Deployment complete!"
-DEPLOY_SCRIPT
-
-ssh "$SSH_USER@$VM_IP" chmod +x /tmp/deploy-wayvnc.sh
-echo "✓ Deployment script created at /tmp/deploy-wayvnc.sh"
+echo "Copying deployment helper script..."
+scp scripts/deploy-wayvnc-monitor.sh "$SSH_USER@$VM_IP:/tmp/deploy-wayvnc-monitor.sh" >/dev/null
+ssh "$SSH_USER@$VM_IP" chmod +x /tmp/deploy-wayvnc-monitor.sh
+echo "✓ Deployment script ready"
 
 # Show final instructions
 echo ""
@@ -79,6 +47,6 @@ echo "=========================================="
 echo ""
 echo "Run this command on your VM to complete deployment:"
 echo ""
-echo "  /tmp/deploy-wayvnc.sh"
+echo "  /tmp/deploy-wayvnc-monitor.sh"
 echo ""
 echo "=========================================="
