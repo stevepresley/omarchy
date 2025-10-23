@@ -31,31 +31,31 @@ echo "Omarchy path on VM: $OMARCHY_PATH"
 # CLEANUP: Kill old processes and disable old user service
 echo ""
 echo "Cleaning up old monitor processes..."
-ssh "$SSH_USER@$VM_IP" "sudo pkill -9 -f 'omarchy-wayvnc-disconnect-lock' || true"
-ssh "$SSH_USER@$VM_IP" "sudo pkill -9 -f 'omarchy-wayvnc-monitor' || true"
+ssh -t "$SSH_USER@$VM_IP" "sudo pkill -9 -f 'omarchy-wayvnc-disconnect-lock' || true"
+ssh -t "$SSH_USER@$VM_IP" "sudo pkill -9 -f 'omarchy-wayvnc-monitor' || true"
 ssh "$SSH_USER@$VM_IP" "systemctl --user stop omarchy-wayvnc-monitor.service 2>/dev/null || true"
 ssh "$SSH_USER@$VM_IP" "systemctl --user disable omarchy-wayvnc-monitor.service 2>/dev/null || true"
-ssh "$SSH_USER@$VM_IP" "sudo systemctl stop omarchy-wayvnc-monitor.service 2>/dev/null || true"
+ssh -t "$SSH_USER@$VM_IP" "sudo systemctl stop omarchy-wayvnc-monitor.service 2>/dev/null || true"
 echo "✓ Old processes killed and user service disabled"
 
 # Deploy new system script
 echo ""
 echo "Deploying new wayvnc monitor script..."
 scp install/files/usr-local-bin-omarchy-wayvnc-monitor "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor"
-ssh "$SSH_USER@$VM_IP" "sudo cp /tmp/omarchy-wayvnc-monitor /usr/local/bin/omarchy-wayvnc-monitor && sudo chmod +x /usr/local/bin/omarchy-wayvnc-monitor"
+ssh -t "$SSH_USER@$VM_IP" "sudo cp /tmp/omarchy-wayvnc-monitor /usr/local/bin/omarchy-wayvnc-monitor && sudo chmod +x /usr/local/bin/omarchy-wayvnc-monitor"
 echo "✓ New system script deployed to /usr/local/bin/"
 
 # Deploy systemd service (system service, runs as root)
 echo ""
 echo "Deploying systemd service..."
 scp config/systemd/system/omarchy-wayvnc-monitor.service "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor.service"
-ssh "$SSH_USER@$VM_IP" "sudo cp /tmp/omarchy-wayvnc-monitor.service /etc/systemd/system/ && sudo chmod 644 /etc/systemd/system/omarchy-wayvnc-monitor.service"
+ssh -t "$SSH_USER@$VM_IP" "sudo cp /tmp/omarchy-wayvnc-monitor.service /etc/systemd/system/ && sudo chmod 644 /etc/systemd/system/omarchy-wayvnc-monitor.service"
 echo "✓ Systemd service deployed"
 
 # Enable the monitor service at system level (runs as root to access wayvnc socket)
 echo ""
 echo "Enabling wayvnc disconnect monitor..."
-ssh "$SSH_USER@$VM_IP" "sudo systemctl daemon-reload && sudo systemctl enable --now omarchy-wayvnc-monitor.service"
+ssh -t "$SSH_USER@$VM_IP" "sudo systemctl daemon-reload && sudo systemctl enable --now omarchy-wayvnc-monitor.service"
 echo "✓ wayvnc disconnect monitor enabled (running as root system service)"
 
 # Show testing instructions
