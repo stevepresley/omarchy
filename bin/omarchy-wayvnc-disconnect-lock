@@ -4,17 +4,25 @@
 # This implements secure session management: disconnect = lock + detach
 # On reconnect, user sees greeter (wayvnc detached until user logs back in)
 # Usage: omarchy-wayvnc-disconnect-lock
+# Note: When running as system service, only detach; user session lock is secondary
 
 set -e
 
-# Lock command (loginctl is more reliable than omarchy-lock-screen)
-LOCK_CMD="loginctl lock-session"
+# Determine if running as root (system service) or user (user service)
+if [[ $EUID -eq 0 ]]; then
+  # System service context - can't use loginctl (no active user session)
+  # Detaching wayvnc is sufficient to force greeter display on reconnect
+  LOCK_CMD="/bin/true"
+else
+  # User service context - lock the user's session
+  LOCK_CMD="loginctl lock-session"
+fi
 
 # Monitor wayvnc events and trigger lock+detach on disconnect
 wayvncctl --wait --reconnect --json event-receive 2>/dev/null | while read -r event; do
   # Parse JSON event - check if it's a client-disconnected event
   if echo "$event" | grep -q '"method":"client-disconnected"'; then
-    # Security: Lock screen immediately to prevent unauthorized access
+    # Security: Lock screen immediately (if in user context)
     $LOCK_CMD 2>/dev/null || true
 
     # UX: Detach wayvnc so reconnecting user sees greeter instead of existing session

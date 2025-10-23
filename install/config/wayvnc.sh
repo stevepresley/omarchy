@@ -93,16 +93,15 @@ EOF
   sudo chmod 0440 /etc/sudoers.d/user-wayvnc
 
   # Enable wayvnc disconnect monitor (Issues 24 & 25)
-  # This service:
+  # This system service:
   # 1. Detects when VNC client disconnects
-  # 2. Locks the screen immediately (prevents unauthorized reconnection)
-  # 3. Detaches wayvnc from session (forces greeter on reconnect for re-authentication)
-  mkdir -p ~/.config/systemd/user
-  cp "$HOME/.local/share/omarchy/default/systemd/user/omarchy-wayvnc-monitor.service" \
-     ~/.config/systemd/user/omarchy-wayvnc-monitor.service
+  # 2. Detaches wayvnc from session (forces greeter on reconnect for re-authentication)
+  # Note: Runs as root to access wayvnc socket owned by root
+  sudo cp "$HOME/.local/share/omarchy/config/systemd/system/omarchy-wayvnc-monitor.service" \
+     /etc/systemd/system/omarchy-wayvnc-monitor.service
 
-  systemctl --user daemon-reload
-  systemctl --user enable omarchy-wayvnc-monitor.service
+  sudo systemctl daemon-reload
+  sudo systemctl enable omarchy-wayvnc-monitor.service
 
   # Get IP address for user information
   ip_address=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -n 1)

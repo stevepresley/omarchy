@@ -1,0 +1,23 @@
+[Unit]
+Description=Omarchy wayvnc Disconnect Lock & Detach Monitor
+Documentation=https://github.com/stevepresley/omarchy-advanced
+# System service to monitor wayvnc client events and lock+detach on disconnect
+# Runs as root to access wayvnc socket owned by root
+After=wayvnc.service
+Wants=wayvnc.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/root/.local/share/omarchy/bin/omarchy-wayvnc-disconnect-lock
+Restart=always
+RestartSec=5
+
+# Fail gracefully if wayvnc not available
+ExecStartPost=/bin/bash -c 'wayvncctl --help >/dev/null 2>&1 || (systemctl stop omarchy-wayvnc-monitor.service; exit 0)'
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
