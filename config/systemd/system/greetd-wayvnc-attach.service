@@ -1,0 +1,21 @@
+[Unit]
+Description=Continuous wayvnc re-attach for greetd greeter
+Documentation=https://github.com/stevepresley/omarchy-advanced
+# Run whenever greeter is active (at boot before any user login, and after user logout)
+After=greetd.service wayvnc.service
+Wants=greetd.service wayvnc.service
+
+[Service]
+Type=simple
+User=root
+# Continuously monitor and re-attach wayvnc to greeter's Sway display
+# This ensures VNC users always see greeter when wayvnc is detached
+ExecStart=/bin/bash -c 'while true; do sleep 1; GREETER_PID=$(pgrep -u root sway | head -1); [[ -n "$GREETER_PID" ]] && { runtime_dir=/run/user/$(stat -c %u /proc/$GREETER_PID/cwd); socket=$runtime_dir/wayland-1; [[ -S "$socket" ]] && wayvncctl --socket /tmp/wayvncctl-0 attach "$socket" 2>/dev/null; }; done'
+Restart=always
+RestartSec=2
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
