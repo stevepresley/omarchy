@@ -78,32 +78,34 @@ handle_disconnect() {
 }
 
 # Main loop: monitor wayvnc events and keep display attachment current
-echo "Starting wayvnc display attachment monitor..."
-
-# Immediately attach to current active display on startup
-attach_to_current_display 2>/dev/null || true
+echo "Starting wayvnc display attachment monitor..." >&2
 
 while true; do
   # Start event monitoring with reconnect logic
   # The --wait and --reconnect flags make wayvncctl wait and reconnect if wayvnc restarts
   # Note: --reconnect will spam errors if wayvnc is down, but that's acceptable
   wayvncctl --wait --reconnect --json event-receive 2>/dev/null | while read -r event; do
-    # Detect client disconnect - lock screen if in user context
-    if echo "$event" | grep -q '"method":"client-disconnected"'; then
-      handle_disconnect
+    # Only process if we got an actual event
+    if [[ -z "$event" ]]; then
+      continue
     fi
 
-    # After a disconnect event, wait for display state to stabilize, then re-attach
+    # Detect client disconnect - lock screen and detach
     if echo "$event" | grep -q '"method":"client-disconnected"'; then
+      echo "DEBUG: VNC client disconnected" >&2
+      handle_disconnect
       sleep 1  # Wait for display state to stabilize after disconnect
       attach_to_current_display 2>/dev/null || true
-    elif echo "$event" | grep -q '"method":"client-connected"'; then
-      # On reconnect, ensure we're attached to the right display
+    fi
+
+    # On client connect, ensure we're attached to the right display
+    if echo "$event" | grep -q '"method":"client-connected"'; then
+      echo "DEBUG: VNC client connected" >&2
       attach_to_current_display 2>/dev/null || true
     fi
   done
 
   # If event-receive exits (wayvnc crashed or restarted), wait and retry
   sleep 2
-  echo "Reconnecting to wayvnc..."
+  echo "Reconnecting to wayvnc..." >&2
 done
