@@ -32,42 +32,53 @@ scp install/files/usr-local-bin-omarchy-wayvnc-monitor "$SSH_USER@$VM_IP:/tmp/om
 scp config/systemd/system/omarchy-wayvnc-monitor.service "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor.service" >/dev/null
 echo "✓ Files copied to /tmp on VM"
 
-# Show instructions for completing deployment on the VM
+# Create deployment script on VM
+echo ""
+echo "Creating deployment script on VM..."
+ssh "$SSH_USER@$VM_IP" cat > /tmp/deploy-wayvnc.sh << 'DEPLOY_SCRIPT'
+#!/bin/bash
+set -e
+
+echo "Killing old processes..."
+sudo pkill -9 -f 'omarchy-wayvnc-disconnect-lock' || true
+sudo pkill -9 -f 'omarchy-wayvnc-monitor' || true
+
+echo "Stopping and disabling old user service..."
+systemctl --user stop omarchy-wayvnc-monitor.service 2>/dev/null || true
+systemctl --user disable omarchy-wayvnc-monitor.service 2>/dev/null || true
+
+echo "Stopping system service..."
+sudo systemctl stop omarchy-wayvnc-monitor.service 2>/dev/null || true
+
+echo "Deploying new monitor script..."
+sudo cp /tmp/omarchy-wayvnc-monitor /usr/local/bin/omarchy-wayvnc-monitor
+sudo chmod +x /usr/local/bin/omarchy-wayvnc-monitor
+
+echo "Deploying systemd service..."
+sudo cp /tmp/omarchy-wayvnc-monitor.service /etc/systemd/system/
+sudo chmod 644 /etc/systemd/system/omarchy-wayvnc-monitor.service
+
+echo "Enabling and starting service..."
+sudo systemctl daemon-reload
+sudo systemctl enable --now omarchy-wayvnc-monitor.service
+
+echo "Verifying..."
+ps aux | grep omarchy-wayvnc | grep -v grep
+
+echo "✓ Deployment complete!"
+DEPLOY_SCRIPT
+
+ssh "$SSH_USER@$VM_IP" chmod +x /tmp/deploy-wayvnc.sh
+echo "✓ Deployment script created at /tmp/deploy-wayvnc.sh"
+
+# Show final instructions
 echo ""
 echo "=========================================="
-echo "Files Ready for Deployment"
+echo "Ready to Deploy!"
 echo "=========================================="
 echo ""
-echo "The following files are now in /tmp on your VM:"
-echo "  /tmp/omarchy-wayvnc-monitor"
-echo "  /tmp/omarchy-wayvnc-monitor.service"
+echo "Run this command on your VM to complete deployment:"
 echo ""
-echo "NEXT STEPS - Run these commands ON YOUR VM terminal:"
-echo ""
-echo "1. Kill old processes:"
-echo "   sudo pkill -9 -f 'omarchy-wayvnc-disconnect-lock'"
-echo "   sudo pkill -9 -f 'omarchy-wayvnc-monitor'"
-echo ""
-echo "2. Stop and disable old user service:"
-echo "   systemctl --user stop omarchy-wayvnc-monitor.service 2>/dev/null || true"
-echo "   systemctl --user disable omarchy-wayvnc-monitor.service 2>/dev/null || true"
-echo ""
-echo "3. Stop system service:"
-echo "   sudo systemctl stop omarchy-wayvnc-monitor.service 2>/dev/null || true"
-echo ""
-echo "4. Deploy new monitor script:"
-echo "   sudo cp /tmp/omarchy-wayvnc-monitor /usr/local/bin/omarchy-wayvnc-monitor"
-echo "   sudo chmod +x /usr/local/bin/omarchy-wayvnc-monitor"
-echo ""
-echo "5. Deploy systemd service:"
-echo "   sudo cp /tmp/omarchy-wayvnc-monitor.service /etc/systemd/system/"
-echo "   sudo chmod 644 /etc/systemd/system/omarchy-wayvnc-monitor.service"
-echo ""
-echo "6. Enable and start the service:"
-echo "   sudo systemctl daemon-reload"
-echo "   sudo systemctl enable --now omarchy-wayvnc-monitor.service"
-echo ""
-echo "7. Verify it's running:"
-echo "   ps aux | grep omarchy-wayvnc | grep -v grep"
+echo "  /tmp/deploy-wayvnc.sh"
 echo ""
 echo "=========================================="
