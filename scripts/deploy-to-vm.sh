@@ -36,10 +36,10 @@ scp config/systemd/system/omarchy-wayvnc-monitor.service "$SSH_USER@$VM_IP:/tmp/
 echo "✓ Files copied to /tmp"
 
 # Create a single SSH session that runs all cleanup and deployment commands
-# Use sudo -S to read password from stdin so it's only asked once
+# With SSH keys, sudo should work without password prompts if configured for NOPASSWD
 echo ""
 echo "Running cleanup and deployment on VM..."
-ssh -t "$SSH_USER@$VM_IP" sudo -S bash << 'DEPLOY_SCRIPT'
+ssh "$SSH_USER@$VM_IP" sudo bash << 'DEPLOY_SCRIPT'
 set -e
 
 # Cleanup: Kill old processes
