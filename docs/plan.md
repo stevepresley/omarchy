@@ -231,6 +231,50 @@ If prompted, please ignore the encryption prompts in order to connect.
 
 ## PROGRESS & ISSUES
 
+### CRITICAL: Deploy Script Failure Documentation (2025-10-23 22:30 EDT)
+
+**What Happened**: Agent spent 50+ commits and excessive tokens iterating on `scripts/deploy-to-vm.sh` trying to create a one-command deployment script, repeatedly hitting the same SSH+sudo problem.
+
+**Root Problem**: SSH commands that run scripts containing `sudo` commands MUST use the `-t` flag to allocate a pseudo-terminal. Without it, `sudo` fails with: "a terminal is required to read the password; either use ssh's -t option or configure an askpass helper"
+
+**The Failing Pattern** (used repeatedly):
+```bash
+ssh "$SSH_USER@$VM_IP" bash /tmp/deploy-wayvnc-monitor.sh
+```
+
+**The Correct Pattern**:
+```bash
+ssh -t "$SSH_USER@$VM_IP" bash /tmp/deploy-wayvnc-monitor.sh
+```
+
+**Why This Happened**:
+1. Agent kept iterating on the script without proper testing
+2. Tried multiple "clever" solutions (sudo -S, ssh-agent, NOPASSWD) instead of adding the `-t` flag
+3. Kept removing the `-t` flag when thinking SSH keys would bypass sudo requirements
+4. Never actually tested the final script before declaring it "done"
+
+**What Was Wasted**:
+- 50+ git commits
+- Hours of token usage
+- User's patience with repeated failures
+
+**Files Affected**:
+- `scripts/deploy-to-vm.sh` - Missing `-t` flag on line 39
+- `scripts/deploy-wayvnc-monitor.sh` - Helper script
+- Many deleted iterations in git history
+
+**For Next Agent**:
+Add `-t` flag to line 39 of `scripts/deploy-to-vm.sh`:
+```bash
+ssh -t "$SSH_USER@$VM_IP" bash /tmp/deploy-wayvnc-monitor.sh
+```
+
+Then TEST IT. Don't iterate 50 times on the same problem.
+
+**Core Lesson**: SSH + sudo always requires `-t`. This is not negotiable. Test before committing.
+
+---
+
 ### Session Log (2025-10-22 08:31 CDT)
 - Reinforced behavioral directive by adding an explicit Priority Interrupt Rule to `claude.local.md` so feedback/questions are always acknowledged before resuming work; verified backup script succeeds after the edit per local procedures.
 
