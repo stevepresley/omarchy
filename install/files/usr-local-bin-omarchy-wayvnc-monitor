@@ -70,7 +70,9 @@ handle_disconnect() {
     SESSION_ID=$(loginctl list-sessions | grep "$ACTIVE_USER" | awk '{print $1}' | head -1)
     if [[ -n "$SESSION_ID" ]]; then
       echo "DEBUG: Locking session $SESSION_ID for user $ACTIVE_USER" >&2
-      loginctl lock-session "$SESSION_ID" 2>/dev/null || true
+      LOCK_OUTPUT=$(loginctl lock-session "$SESSION_ID" 2>&1)
+      LOCK_EXIT=$?
+      echo "DEBUG: loginctl lock-session exit code: $LOCK_EXIT, output: $LOCK_OUTPUT" >&2
     fi
   fi
 }
