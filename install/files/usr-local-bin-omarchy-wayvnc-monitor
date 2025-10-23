@@ -13,26 +13,49 @@ attach_to_current_display() {
 
   # Check for active user Hyprland (any non-root user with hyprland running)
   ACTIVE_USER=$(ps aux | grep "[h]yprland" | awk '{print $1}' | grep -v root | head -1)
+  echo "DEBUG: Checking for active user. Found: $ACTIVE_USER" >&2
+
   if [[ -n "$ACTIVE_USER" ]]; then
     # User is logged in - get their Wayland socket
     RUNTIME_DIR="/run/user/$(id -u "$ACTIVE_USER")"
     SOCKET="$RUNTIME_DIR/wayland-1"
+    echo "DEBUG: Trying to attach to user socket: $SOCKET" >&2
+
     if [[ -S "$SOCKET" ]]; then
-      wayvncctl --socket /tmp/wayvncctl-0 attach "$SOCKET" 2>/dev/null && return 0
+      echo "DEBUG: Socket exists, attempting attach..." >&2
+      wayvncctl --socket /tmp/wayvncctl-0 attach "$SOCKET" 2>&1 && {
+        echo "DEBUG: Successfully attached to $SOCKET" >&2
+        return 0
+      }
+      echo "DEBUG: Attach failed for $SOCKET" >&2
+    else
+      echo "DEBUG: Socket does not exist: $SOCKET" >&2
     fi
   fi
 
   # Check for greeter Sway (running as root, different from user Hyprland)
   GREETER_PID=$(pgrep -u root "sway" 2>/dev/null | head -1)
+  echo "DEBUG: Checking for greeter. Found PID: $GREETER_PID" >&2
+
   if [[ -n "$GREETER_PID" ]]; then
     # Greeter is running - get greeter's Wayland socket
     RUNTIME_DIR="/run/user/0"  # root's runtime dir
     SOCKET="$RUNTIME_DIR/wayland-1"
+    echo "DEBUG: Trying to attach to greeter socket: $SOCKET" >&2
+
     if [[ -S "$SOCKET" ]]; then
-      wayvncctl --socket /tmp/wayvncctl-0 attach "$SOCKET" 2>/dev/null && return 0
+      echo "DEBUG: Socket exists, attempting attach..." >&2
+      wayvncctl --socket /tmp/wayvncctl-0 attach "$SOCKET" 2>&1 && {
+        echo "DEBUG: Successfully attached to $SOCKET" >&2
+        return 0
+      }
+      echo "DEBUG: Attach failed for $SOCKET" >&2
+    else
+      echo "DEBUG: Socket does not exist: $SOCKET" >&2
     fi
   fi
 
+  echo "DEBUG: No display found to attach to" >&2
   return 1
 }
 
