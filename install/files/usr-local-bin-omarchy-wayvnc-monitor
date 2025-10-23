@@ -77,6 +77,7 @@ attach_to_current_display 2>/dev/null || true
 while true; do
   # Start event monitoring with reconnect logic
   # The --wait and --reconnect flags make wayvncctl wait and reconnect if wayvnc restarts
+  # Note: --reconnect will spam errors if wayvnc is down, but that's acceptable
   wayvncctl --wait --reconnect --json event-receive 2>/dev/null | while read -r event; do
     # Detect client disconnect - lock screen if in user context
     if echo "$event" | grep -q '"method":"client-disconnected"'; then
