@@ -5,7 +5,8 @@
 # Follows user login/logout: greeter Sway on boot, user's Hyprland after login
 # On VNC disconnect: automatically re-attaches to current active display
 
-set -e
+# Don't use set -e - we want the script to continue even if commands fail
+# set -e
 
 # Find and attach to currently active Wayland display
 attach_to_current_display() {
