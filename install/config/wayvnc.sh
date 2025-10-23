@@ -84,13 +84,25 @@ EOF
   fi
 
   # Add sudoers rule to allow user to run wayvncctl without password
-  # This is needed for the Hyprland autostart attach command
+  # This is needed for the Hyprland autostart attach command AND the monitor service
   # Note: $USER is set during installation by archinstall
   sudo tee /etc/sudoers.d/user-wayvnc <<EOF >/dev/null
 $USER ALL=(ALL) NOPASSWD: /usr/bin/wayvncctl
 EOF
 
   sudo chmod 0440 /etc/sudoers.d/user-wayvnc
+
+  # Enable wayvnc disconnect monitor (Issues 24 & 25)
+  # This service:
+  # 1. Detects when VNC client disconnects
+  # 2. Locks the screen immediately (prevents unauthorized reconnection)
+  # 3. Detaches wayvnc from session (forces greeter on reconnect for re-authentication)
+  mkdir -p ~/.config/systemd/user
+  cp "$HOME/.local/share/omarchy/default/systemd/user/omarchy-wayvnc-monitor.service" \
+     ~/.config/systemd/user/omarchy-wayvnc-monitor.service
+
+  systemctl --user daemon-reload
+  systemctl --user enable omarchy-wayvnc-monitor.service
 
   # Get IP address for user information
   ip_address=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -n 1)
@@ -102,6 +114,7 @@ EOF
   echo "✓ wayvnc installed and configured with PAM authentication"
   echo "  VNC will be accessible at: vnc://$ip_address:5900"
   echo "  Users authenticate with their system username/password"
+  echo "✓ VNC Disconnect Monitor enabled (automatic screen lock + detach)"
 else
   echo "wayvnc disabled (not requested in advanced mode)"
 fi

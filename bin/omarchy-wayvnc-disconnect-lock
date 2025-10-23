@@ -1,0 +1,24 @@
+#!/bin/bash
+# wayvnc Disconnect Lock & Detach Monitor
+# Monitors wayvnc client events and locks screen + detaches on disconnect
+# This implements secure session management: disconnect = lock + detach
+# On reconnect, user sees greeter (wayvnc detached until user logs back in)
+# Usage: omarchy-wayvnc-disconnect-lock
+
+set -e
+
+# Lock command (loginctl is more reliable than omarchy-lock-screen)
+LOCK_CMD="loginctl lock-session"
+
+# Monitor wayvnc events and trigger lock+detach on disconnect
+wayvncctl --wait --reconnect --json event-receive 2>/dev/null | while read -r event; do
+  # Parse JSON event - check if it's a client-disconnected event
+  if echo "$event" | grep -q '"method":"client-disconnected"'; then
+    # Security: Lock screen immediately to prevent unauthorized access
+    $LOCK_CMD 2>/dev/null || true
+
+    # UX: Detach wayvnc so reconnecting user sees greeter instead of existing session
+    # This forces re-authentication on reconnect (secure session isolation)
+    wayvncctl detach 2>/dev/null || true
+  fi
+done

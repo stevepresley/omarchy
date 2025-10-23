@@ -1,0 +1,55 @@
+#!/bin/bash
+# Display splash screen during Hyprland startup transition
+# Shows user that desktop is loading instead of black screen
+# Usage: omarchy-show-splash [image-path]
+
+# Get splash image (prioritize user's custom image, then use default)
+SPLASH_IMAGE="${1:-${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/splash.png}"
+
+# Fallback to default splash if user's version doesn't exist
+if [[ ! -f "$SPLASH_IMAGE" ]]; then
+  SPLASH_IMAGE="$HOME/.local/share/omarchy/default/greetd/splash.png"
+fi
+
+# If still no splash, create a minimal "Loading..." text overlay
+if [[ ! -f "$SPLASH_IMAGE" ]]; then
+  # Use swaybg to show solid color with timeout
+  # This prevents black screen during transition
+  timeout 30 swaybg -c "#1a1b26" &
+  SWAYBG_PID=$!
+
+  # Show loading message (can be replaced with fancy text overlay later)
+  echo "✓ Desktop is loading..." >&2
+
+  # Wait for Hyprland to start (indicated by socket availability)
+  for i in {1..60}; do
+    if [[ -S "$XDG_RUNTIME_DIR/hyprland/0" ]] 2>/dev/null; then
+      # Hyprland is ready, kill splash
+      kill $SWAYBG_PID 2>/dev/null || true
+      exit 0
+    fi
+    sleep 0.5
+  done
+
+  # Timeout reached
+  kill $SWAYBG_PID 2>/dev/null || true
+  exit 0
+fi
+
+# If we have an image, display it with timeout
+# This overlays the splash image during startup
+timeout 30 swaybg -i "$SPLASH_IMAGE" &
+SWAYBG_PID=$!
+
+# Wait for Hyprland to start
+for i in {1..60}; do
+  if [[ -S "$XDG_RUNTIME_DIR/hyprland/0" ]] 2>/dev/null; then
+    kill $SWAYBG_PID 2>/dev/null || true
+    exit 0
+  fi
+  sleep 0.5
+done
+
+# Timeout reached
+kill $SWAYBG_PID 2>/dev/null || true
+exit 0

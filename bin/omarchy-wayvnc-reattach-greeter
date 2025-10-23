@@ -1,0 +1,31 @@
+#!/bin/bash
+# wayvnc Re-attach to Greeter
+# Called when user session exits to re-attach wayvnc to greeter Sway compositor
+# This ensures VNC clients see greeter (login prompt) instead of grey screen
+# Usage: omarchy-wayvnc-reattach-greeter
+
+# Greeter runs as 'greeter' user, Sway socket is in its XDG_RUNTIME_DIR
+GREETER_UID=$(id -u greeter 2>/dev/null)
+
+if [[ -z "$GREETER_UID" ]]; then
+  echo "Greeter user not found" >&2
+  exit 1
+fi
+
+# Find greeter's Wayland socket
+GREETER_RUNTIME_DIR="/run/user/$GREETER_UID"
+GREETER_SOCKET=$(find "$GREETER_RUNTIME_DIR" -name "wayland-*" 2>/dev/null | head -1)
+
+if [[ -z "$GREETER_SOCKET" ]]; then
+  echo "Greeter Wayland socket not found at $GREETER_RUNTIME_DIR" >&2
+  exit 1
+fi
+
+# Re-attach wayvnc to greeter compositor
+# Use sudo to ensure proper permissions
+sudo wayvncctl attach "$GREETER_SOCKET" 2>/dev/null || {
+  echo "Failed to attach wayvnc to greeter" >&2
+  exit 1
+}
+
+echo "✓ wayvnc re-attached to greeter"

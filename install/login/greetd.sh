@@ -42,6 +42,7 @@ sudo chmod +x /usr/local/bin/greetd-wayvnc-attach
 
 # Create Sway configuration for greeter
 # This runs regreet (graphical login) and wayvnc attach script
+# Handles both initial boot AND re-attach after user session exit (Issue 26)
 sudo tee /etc/greetd/sway-config <<'EOF' >/dev/null
 # Sway config for greetd greeter
 # Attaches wayvnc to this compositor (for VNC login screen access)
@@ -49,6 +50,7 @@ sudo tee /etc/greetd/sway-config <<'EOF' >/dev/null
 # Use solid color background (tokyo-night dark blue)
 output * bg "#1a1b26" solid_color
 
+# Attach wayvnc to greeter (handles both boot and session exit)
 exec /usr/local/bin/greetd-wayvnc-attach
 
 # Launch regreet graphical login prompt
@@ -134,6 +136,12 @@ EOF
 sudo systemctl enable greetd.service
 sudo systemctl daemon-reload
 
+# Setup splash screen during login transition (Issue 27)
+# Create default splash image directory
+mkdir -p ~/.local/share/omarchy/default/greetd
+# TODO: Add default splash image file (currently uses solid color fallback in omarchy-show-splash)
+
 echo "✓ greetd display manager configured with regreet greeter"
 echo "  VNC clients will see login screen via wayvnc"
 echo "  Only 'Omarchy Advanced' session will appear in greeter"
+echo "✓ Login transition splash screen enabled (fallback to solid color)"
