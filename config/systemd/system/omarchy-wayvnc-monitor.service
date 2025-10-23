@@ -9,7 +9,9 @@ Wants=wayvnc.service
 [Service]
 Type=simple
 User=root
-ExecStart=/root/.local/share/omarchy/bin/omarchy-wayvnc-disconnect-lock
+# Call wrapper script that finds the correct monitor script for the active user
+# Try /root first, then look for wrapper in any user's home (for dev/testing)
+ExecStart=/bin/bash -c 'WRAPPER=/root/.local/share/omarchy/bin/omarchy-wayvnc-monitor-wrapper; [[ ! -f "$WRAPPER" ]] && WRAPPER=$(find /home -name omarchy-wayvnc-monitor-wrapper 2>/dev/null | head -1); exec "$WRAPPER"'
 Restart=always
 RestartSec=5
 

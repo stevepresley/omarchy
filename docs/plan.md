@@ -1179,9 +1179,13 @@ Replace the current autologin approach with greetd display manager:
      - Deploys system service file via SCP
      - Enables with `sudo systemctl enable --now`
      - Updated test instructions for system service
-- **Ready for testing**: Issue 24 can now be tested on VM
-- **Related to**: Issue 25 (unblocked once Issue 24 confirmed working)
-- **Status**: ✅ REFACTORED - READY FOR TESTING
+- **Testing Results** (2025-10-23):
+  - ✅ Monitor service successfully detects VNC client disconnect events
+  - ✅ Monitor correctly calls `wayvncctl detach` on disconnect
+  - ✅ wayvnc correctly detaches (client sees grey screen)
+  - ❌ BUT: Grey screen persists on reconnect (greeter not re-attaching)
+  - Root cause: Issue 26 problem - greeter not re-attaching wayvnc
+- **Status**: ✅ PARTIALLY WORKING - Detach works, but greeter re-attach missing (Issue 26)
 
 **Issue 25: VNC Reconnection UX - No Greeter on Reconnect (2025-10-23)**
 - **Problem**: When user disconnects and reconnects VNC, they should see login prompt again
@@ -1202,28 +1206,23 @@ Replace the current autologin approach with greetd display manager:
   6. User must re-authenticate (secure session isolation)
 - **Status**: ⏳ READY TO TEST
 
-**Issue 26: wayvnc Does Not Re-attach to Greeter After Session Exit (2025-10-23)**
-- **Problem**: When user logs out via SUPER+ESCAPE → Relaunch, wayvnc shows grey screen instead of greeter
-- **Current behavior** (Test 3 findings):
-  1. User logs in via console greeter (VNC shows grey screen - wayvnc detached)
-  2. Hyprland launches successfully
-  3. After login, wayvnc attaches and VNC shows session (correct)
-  4. User presses SUPER+ESCAPE → Relaunch (calls `uwsm stop`)
-  5. Console shows greetd greeter (correct)
-  6. **VNC shows grey screen** (WRONG - should show greeter)
-- **Implementation** (2025-10-23):
-  - Created `bin/omarchy-wayvnc-reattach-greeter` - finds greeter user's Wayland socket and re-attaches wayvnc
-  - Modified `install/login/greetd.sh` to ensure `/usr/local/bin/greetd-wayvnc-attach` runs on every greeter startup
-  - Greeter Sway config (`/etc/greetd/sway-config`) already calls wayvnc attach script
-- **How it works**:
-  1. User session exits (`uwsm stop` or logout)
-  2. greetd daemon restarts greeter (automatically, no hook needed)
-  3. Greeter Sway config runs `/usr/local/bin/greetd-wayvnc-attach`
-  4. Script finds greeter's Wayland socket at `/run/user/$(id -u greeter)/wayland-*`
-  5. Script attaches wayvnc to greeter socket: `wayvncctl attach <socket>`
-  6. VNC clients now see greeter login prompt instead of grey screen
-- **Solution**: Leverages existing greetd restart to trigger re-attach (no new systemd service needed)
-- **Status**: ✅ IMPLEMENTED (ready for testing)
+**Issue 26: wayvnc Does Not Re-attach to Greeter (VNC Disconnect & Session Exit) (2025-10-23)**
+- **Problem**: When wayvnc is detached (either via Issue 24 disconnect OR session exit), greeter does NOT re-attach on VNC reconnect
+- **Current behavior** (Testing 2025-10-23):
+  - Scenario 1 (VNC disconnect): User in Hyprland → Disconnect VNC → Reconnect → Grey screen (greeter NOT visible)
+  - Scenario 2 (Session exit): User in Hyprland → SUPER+ESC Relaunch → Console shows greeter → VNC shows grey screen
+  - Expected: Both scenarios should show greeter login prompt on VNC
+- **Root cause**: Greeter's Sway config is NOT attaching wayvnc when greeter starts
+  - Greeter config may not exist, may not be executable, or may not be running
+  - Need to verify greeter Sway config has wayvnc attach command
+- **Implementation status**: ❌ NOT WORKING
+  - `bin/omarchy-wayvnc-reattach-greeter` script exists but NOT being called
+  - Greeter's wayvnc attach command NOT triggering on reconnect
+  - Need to verify/fix greeter startup hooks
+- **Blocking**: Issue 24 cannot be considered complete until Issue 26 is fixed
+  - Detaching wayvnc only solves half the problem
+  - Reconnect must show greeter, not grey screen
+- **Status**: ❌ BROKEN - Greeter attachment missing
 
 **Issue 27: Login Sequence Visibility - Black Screen During Transition (2025-10-23)**
 - **Problem**: During greetd→Hyprland transition, user sees black screen with visible terminal output

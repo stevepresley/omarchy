@@ -1,0 +1,17 @@
+#!/bin/bash
+# Wrapper script to find and run the correct monitor script for the active user
+# This allows the systemd service to work with any logged-in user
+
+# Try /root/.local/share/omarchy first (normal root installation)
+if [[ -f /root/.local/share/omarchy/bin/omarchy-wayvnc-disconnect-lock ]]; then
+  exec /root/.local/share/omarchy/bin/omarchy-wayvnc-disconnect-lock
+fi
+
+# Otherwise find the user with active Hyprland session
+ACTIVE_USER=$(ps aux | grep "[h]yprland" | awk '{print $1}' | head -1)
+if [[ -n "$ACTIVE_USER" ]] && [[ -f "/home/$ACTIVE_USER/.local/share/omarchy/bin/omarchy-wayvnc-disconnect-lock" ]]; then
+  exec "/home/$ACTIVE_USER/.local/share/omarchy/bin/omarchy-wayvnc-disconnect-lock"
+fi
+
+echo "Monitor script not found for root or active user" >&2
+exit 1
