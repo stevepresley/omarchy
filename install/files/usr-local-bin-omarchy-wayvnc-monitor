@@ -60,11 +60,18 @@ attach_to_current_display() {
   return 1
 }
 
-# Lock screen on VNC client disconnect (user context only)
+# Lock screen on VNC client disconnect
 handle_disconnect() {
-  if [[ $EUID -ne 0 ]]; then
-    # User service context - lock the session
-    loginctl lock-session 2>/dev/null || true
+  # Find the user with active Hyprland session
+  ACTIVE_USER=$(ps aux | grep "[h]yprland" | awk '{print $1}' | grep -v root | head -1)
+
+  if [[ -n "$ACTIVE_USER" ]]; then
+    # Get the session ID for this user and lock it
+    SESSION_ID=$(loginctl list-sessions | grep "$ACTIVE_USER" | awk '{print $1}' | head -1)
+    if [[ -n "$SESSION_ID" ]]; then
+      echo "DEBUG: Locking session $SESSION_ID for user $ACTIVE_USER" >&2
+      loginctl lock-session "$SESSION_ID" 2>/dev/null || true
+    fi
   fi
 }
 
