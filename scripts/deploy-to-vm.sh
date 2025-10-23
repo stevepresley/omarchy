@@ -15,11 +15,6 @@ if [[ -z "$VM_IP" ]]; then
   exit 1
 fi
 
-# Setup SSH with password caching using ssh-agent
-# This allows us to run multiple sudo commands without repeated prompts
-eval "$(ssh-agent -s)" >/dev/null 2>&1
-ssh-add -K ~/.ssh/id_rsa >/dev/null 2>&1 || true
-
 # Verify SSH connectivity
 echo "Testing SSH connection to $VM_IP as $SSH_USER..."
 if ! ssh -o ConnectTimeout=5 "$SSH_USER@$VM_IP" "echo 'SSH OK'" >/dev/null 2>&1; then
@@ -41,27 +36,27 @@ scp config/systemd/system/omarchy-wayvnc-monitor.service "$SSH_USER@$VM_IP:/tmp/
 echo "✓ Files copied to /tmp"
 
 # Create a single SSH session that runs all cleanup and deployment commands
-# This way sudo password is only asked once
+# Use sudo -S to read password from stdin so it's only asked once
 echo ""
-echo "Running cleanup and deployment on VM (sudo password may be requested once)..."
-ssh -t "$SSH_USER@$VM_IP" bash << 'DEPLOY_SCRIPT'
+echo "Running cleanup and deployment on VM..."
+ssh -t "$SSH_USER@$VM_IP" sudo -S bash << 'DEPLOY_SCRIPT'
 set -e
 
 # Cleanup: Kill old processes
 echo "Cleaning up old monitor processes..."
-sudo pkill -9 -f 'omarchy-wayvnc-disconnect-lock' || true
-sudo pkill -9 -f 'omarchy-wayvnc-monitor' || true
+pkill -9 -f 'omarchy-wayvnc-disconnect-lock' || true
+pkill -9 -f 'omarchy-wayvnc-monitor' || true
 systemctl --user stop omarchy-wayvnc-monitor.service 2>/dev/null || true
 systemctl --user disable omarchy-wayvnc-monitor.service 2>/dev/null || true
-sudo systemctl stop omarchy-wayvnc-monitor.service 2>/dev/null || true
+systemctl stop omarchy-wayvnc-monitor.service 2>/dev/null || true
 echo "✓ Old processes killed and user service disabled"
 
 # Ensure /tmp files are in place (they should be from scp)
 echo ""
 echo "Deploying new wayvnc monitor script..."
 if [[ -f /tmp/omarchy-wayvnc-monitor ]]; then
-  sudo cp /tmp/omarchy-wayvnc-monitor /usr/local/bin/omarchy-wayvnc-monitor
-  sudo chmod +x /usr/local/bin/omarchy-wayvnc-monitor
+  cp /tmp/omarchy-wayvnc-monitor /usr/local/bin/omarchy-wayvnc-monitor
+  chmod +x /usr/local/bin/omarchy-wayvnc-monitor
   echo "✓ New system script deployed to /usr/local/bin/"
 else
   echo "ERROR: /tmp/omarchy-wayvnc-monitor not found!"
@@ -72,8 +67,8 @@ fi
 echo ""
 echo "Deploying systemd service..."
 if [[ -f /tmp/omarchy-wayvnc-monitor.service ]]; then
-  sudo cp /tmp/omarchy-wayvnc-monitor.service /etc/systemd/system/
-  sudo chmod 644 /etc/systemd/system/omarchy-wayvnc-monitor.service
+  cp /tmp/omarchy-wayvnc-monitor.service /etc/systemd/system/
+  chmod 644 /etc/systemd/system/omarchy-wayvnc-monitor.service
   echo "✓ Systemd service deployed"
 else
   echo "ERROR: /tmp/omarchy-wayvnc-monitor.service not found!"
@@ -83,8 +78,8 @@ fi
 # Enable the monitor service
 echo ""
 echo "Enabling wayvnc disconnect monitor..."
-sudo systemctl daemon-reload
-sudo systemctl enable --now omarchy-wayvnc-monitor.service
+systemctl daemon-reload
+systemctl enable --now omarchy-wayvnc-monitor.service
 echo "✓ wayvnc disconnect monitor enabled (running as root system service)"
 DEPLOY_SCRIPT
 
