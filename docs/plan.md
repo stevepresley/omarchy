@@ -1247,12 +1247,12 @@ Replace the current autologin approach with greetd display manager:
   - BUT we do NOT detach wayvnc from the locked Hyprland display
   - When client reconnects, `attach_to_current_display()` re-attaches to the locked Hyprland (line 16-35)
   - Result: VNC shows locked screen instead of falling back to greeter
-- **Solution** (Ready to implement):
-  - Add `wayvncctl detach` call in `handle_disconnect()` AFTER locking the session
-  - This forces wayvnc to be truly detached, preventing re-attachment to locked display
-  - On reconnect, `attach_to_current_display()` will find no active Hyprland, fall through to greeter Sway (line 37-61)
-  - Greeter will be visible instead of locked screen
-- **Status**: ✅ LOCK WORKS, Need to add detach to handle_disconnect() to enable Issue 26 (greeter re-attach)
+- **Solution** (IMPLEMENTED - commit af88072):
+  - ✅ Added `wayvncctl detach` call in `handle_disconnect()` AFTER locking the session (line 81)
+  - Forces wayvnc to be truly detached, preventing re-attachment to locked display
+  - On reconnect, `attach_to_current_display()` finds no active Hyprland, falls back to greeter Sway (line 37-61)
+  - Greeter now visible instead of locked screen
+- **Status**: ✅ IMPLEMENTED (commit af88072) - Ready to test on VM
 
 **Issue 25: VNC Reconnection UX - No Greeter on Reconnect (2025-10-23)**
 - **Problem**: When user disconnects and reconnects VNC, they should see login prompt again

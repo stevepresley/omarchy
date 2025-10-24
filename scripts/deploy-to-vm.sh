@@ -1,17 +1,17 @@
 #!/bin/bash
 # Deploy Omarchy Advanced wayvnc monitor - ONE COMMAND, ONE PASSWORD
 # Usage: ./scripts/deploy-to-vm.sh <vm-ip-address> [ssh-user]
-# Example: ./scripts/deploy-to-vm.sh 192.168.50.73 steve
+# Example: ./scripts/deploy-to-vm.sh 192.168.50.73 jeff
 
 set -e
 
 # Get VM IP and SSH user from arguments
 VM_IP="${1:-}"
-SSH_USER="${2:-steve}"
+SSH_USER="${2:-jeff}"
 
 if [[ -z "$VM_IP" ]]; then
   echo "Usage: $0 <vm-ip-address> [ssh-user]"
-  echo "Example: $0 192.168.50.73 steve"
+  echo "Example: $0 192.168.50.73 jeff"
   exit 1
 fi
 
