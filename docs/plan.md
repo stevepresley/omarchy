@@ -1237,22 +1237,23 @@ Replace the current autologin approach with greetd display manager:
      - Deploys system service file via SCP
      - Enables with `sudo systemctl enable --now`
      - Updated test instructions for system service
-- **Testing Results** (2025-10-24 - LIVE TEST):
+- **Testing Results** (2025-10-24 - LIVE TEST - AFTER DEPLOYMENT):
   - ✅ Monitor service successfully detects VNC client disconnect events
   - ✅ **Screen LOCKS on VNC disconnect** (using `loginctl lock-session`)
-  - ✅ wayvnc detaches (client sees grey screen)
-  - ❌ ON RECONNECT: Showing locked user screen, NOT greeter login prompt
-- **Root cause identified** (2025-10-24):
-  - In `handle_disconnect()` function, we call `loginctl lock-session` to lock the user's screen
-  - BUT we do NOT detach wayvnc from the locked Hyprland display
-  - When client reconnects, `attach_to_current_display()` re-attaches to the locked Hyprland (line 16-35)
-  - Result: VNC shows locked screen instead of falling back to greeter
-- **Solution** (IMPLEMENTED - commit af88072):
-  - ✅ Added `wayvncctl detach` call in `handle_disconnect()` AFTER locking the session (line 81)
-  - Forces wayvnc to be truly detached, preventing re-attachment to locked display
-  - On reconnect, `attach_to_current_display()` finds no active Hyprland, falls back to greeter Sway (line 37-61)
-  - Greeter now visible instead of locked screen
-- **Status**: ✅ IMPLEMENTED (commit af88072) - Ready to test on VM
+  - ✅ **wayvnc DETACHES on disconnect** (detach debug message appearing)
+  - ❌ ON RECONNECT: Still showing locked user screen, NOT greeter login prompt
+- **Root cause analysis** (2025-10-24):
+  - PART 1 ✅ FIXED: Monitor now locks session AND detaches wayvnc (commit af88072)
+  - PART 2 ❌ NOT WORKING: Greeter is NOT re-attaching wayvnc on reconnect
+  - When client reconnects with wayvnc detached, greeter should attach to show login prompt
+  - But greeter Sway config is NOT automatically attaching wayvnc
+  - Result: VNC shows grey screen (detached), user expects to see greeter login prompt
+- **What's happening**:
+  - Locked Hyprland display is still there (just locked, not killed)
+  - Monitor's `attach_to_current_display()` still sees Hyprland process running (line 16)
+  - Re-attaches to locked Hyprland instead of falling back to greeter (line 19-35)
+  - Greeter Sway is also running but never gets attached to wayvnc
+- **Status**: ✅ LOCK+DETACH WORKS (commit af88072), but Issue 26 (greeter re-attach) still BLOCKING
 
 **Issue 25: VNC Reconnection UX - No Greeter on Reconnect (2025-10-23)**
 - **Problem**: When user disconnects and reconnects VNC, they should see login prompt again
@@ -1274,22 +1275,27 @@ Replace the current autologin approach with greetd display manager:
 - **Status**: ⏳ READY TO TEST
 
 **Issue 26: wayvnc Does Not Re-attach to Greeter (VNC Disconnect & Session Exit) (2025-10-23)**
-- **Problem**: When wayvnc is detached (either via Issue 24 disconnect OR session exit), greeter does NOT re-attach on VNC reconnect
-- **Current behavior** (Testing 2025-10-23):
-  - Scenario 1 (VNC disconnect): User in Hyprland → Disconnect VNC → Reconnect → Grey screen (greeter NOT visible)
-  - Scenario 2 (Session exit): User in Hyprland → SUPER+ESC Relaunch → Console shows greeter → VNC shows grey screen
-  - Expected: Both scenarios should show greeter login prompt on VNC
-- **Root cause**: Greeter's Sway config is NOT attaching wayvnc when greeter starts
-  - Greeter config may not exist, may not be executable, or may not be running
-  - Need to verify greeter Sway config has wayvnc attach command
-- **Implementation status**: ❌ NOT WORKING
-  - `bin/omarchy-wayvnc-reattach-greeter` script exists but NOT being called
-  - Greeter's wayvnc attach command NOT triggering on reconnect
-  - Need to verify/fix greeter startup hooks
-- **Blocking**: Issue 24 cannot be considered complete until Issue 26 is fixed
-  - Detaching wayvnc only solves half the problem
-  - Reconnect must show greeter, not grey screen
-- **Status**: ❌ BROKEN - Greeter attachment missing
+- **Problem**: When user disconnects VNC, reconnect must ALWAYS show greeter login prompt, NOT any user desktops
+- **Security reason**: Prevent different users from accessing logged-in sessions
+  - Example: 'jeff' connects via VNC before steve's lock fires → gets steve's unlocked desktop (BAD)
+  - Solution: Never attach to user desktops, ONLY to greeter on reconnect
+- **Root cause (identified 2025-10-24)**:
+  - Monitor was trying to attach to ANY running display (user Hyprland OR greeter)
+  - After disconnect, it would re-attach to user's Hyprland (locked or unlocked)
+  - Wrong: `attach_to_current_display()` prioritized user desktops
+  - Right: Should ONLY attach to greeter, never to user desktops
+- **Implementation** (commit dbbf064):
+  - ✅ Created `ensure_greeter_and_attach()` function:
+    - Checks if greeter Sway is running
+    - If NOT running → launches greetd via systemctl start
+    - Waits for greeter to start and socket to be available
+    - Attaches wayvnc to greeter
+  - ✅ Restored `attach_to_current_display()` with correct priority:
+    - Try to attach to user Hyprland (if logged in) - user resumes session
+    - Fall back to greeter (if no user logged in) - show login prompt
+  - ✅ On disconnect: Lock session + detach wayvnc + ensure greeter running
+  - ✅ On reconnect: Attach to user desktop OR greeter (whichever available)
+- **Status**: ✅ IMPLEMENTED (commit dbbf064) - Ready to test on VM
 
 **Issue 27: Login Sequence Visibility - Black Screen During Transition (2025-10-23)**
 - **Problem**: During greetd→Hyprland transition, user sees black screen with visible terminal output
