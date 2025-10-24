@@ -83,10 +83,11 @@ handle_disconnect() {
   echo "DEBUG: Found active user: $ACTIVE_USER" >&2
 
   if [[ -n "$ACTIVE_USER" ]]; then
-    # Get session with SEAT value (graphical session) for this user
+    # Get session with real TTY (graphical session) for this user
     # loginctl columns: SESSION UID USER SEAT LEADER CLASS TTY
-    # We want: user=$ACTIVE_USER AND SEAT!="" (not "-")
-    SESSION_ID=$(loginctl list-sessions --no-legend | awk -v user="$ACTIVE_USER" '$3==user && $4!="" && $4!="-" {print $1; exit}')
+    # Graphical sessions have TTY like "tty1" (not "pts/*" or "-")
+    # We want: user=$ACTIVE_USER AND TTY matches tty[0-9]+
+    SESSION_ID=$(loginctl list-sessions --no-legend | awk -v user="$ACTIVE_USER" '$3==user && $7 ~ /^tty[0-9]/ {print $1; exit}')
 
     echo "DEBUG: Found session $SESSION_ID for user $ACTIVE_USER" >&2
 

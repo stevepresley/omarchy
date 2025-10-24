@@ -1325,19 +1325,22 @@ Replace the current autologin approach with greetd display manager:
      - Correctly identified session 5 (SEAT=seat0)
      - Lock screen displays properly on VNC disconnect
 
-  2. **Commit [pending] - TTY Detection** (switching to for better reliability)
+  2. **Commit [IMPLEMENTED] - TTY Detection** (switching to for better reliability)
      - Find session with TTY matching tty[0-9]+ pattern (real terminal, not pts/*)
      - Rationale: TTY is more fundamental to session type than SEAT
      - SEAT might not be assigned in all scenarios
      - TTY detection is more reliable across different display managers
+     - Implementation: Modified `handle_disconnect()` lines 85-92 to use TTY-based matching
+     - Code: `SESSION_ID=$(loginctl list-sessions --no-legend | awk -v user="$ACTIVE_USER" '$3==user && $7 ~ /^tty[0-9]/ {print $1; exit}')`
 
   **Decision Rationale:**
-  - SEAT detection (c5ab78d) works NOW
+  - SEAT detection (c5ab78d) works NOW - confirmed with lock screen display
   - BUT: TTY detection likely more robust long-term
   - Can revert to SEAT (c5ab78d) if TTY proves unreliable
-  - Planning to switch to TTY approach for production robustness
+  - Switching to TTY approach for production robustness
+  - Both methods target same issue (finding graphical session), different detection approach
 
-- **Status**: ✅ SCREEN LOCK WORKING (commit c5ab78d with SEAT), switching to TTY detection for robustness
+- **Status**: ✅ SCREEN LOCK WORKING (both SEAT c5ab78d and TTY pending versions), testing TTY for long-term reliability
 
 **Issue 27: Login Sequence Visibility - Black Screen During Transition (2025-10-23)**
 - **Problem**: During greetd→Hyprland transition, user sees black screen with visible terminal output
