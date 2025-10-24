@@ -36,7 +36,7 @@ echo "✓ Files copied to /tmp on VM"
 echo ""
 echo "Copying deployment helper script and executing..."
 scp scripts/deploy-wayvnc-monitor.sh "$SSH_USER@$VM_IP:/tmp/deploy-wayvnc-monitor.sh" >/dev/null
-ssh "$SSH_USER@$VM_IP" bash /tmp/deploy-wayvnc-monitor.sh
+ssh -t "$SSH_USER@$VM_IP" bash /tmp/deploy-wayvnc-monitor.sh
 
 echo ""
 echo "=========================================="
