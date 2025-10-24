@@ -78,8 +78,8 @@ attach_to_current_display() {
 
 # Lock screen on VNC client disconnect
 handle_disconnect() {
-  # Find the PID of active Hyprland process
-  HYPRLAND_PID=$(pgrep -u "^[^root]" hyprland | head -1)
+  # Find the PID of active Hyprland process (any user except root)
+  HYPRLAND_PID=$(ps aux | grep "[h]yprland" | grep -v root | awk '{print $2}' | head -1)
   echo "DEBUG: Found Hyprland PID: $HYPRLAND_PID" >&2
 
   if [[ -n "$HYPRLAND_PID" ]]; then
