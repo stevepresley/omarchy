@@ -1,6 +1,5 @@
 #!/bin/bash
-# Deploy Omarchy Advanced changes to running VM for testing
-# This script copies files to the VM, then shows you commands to run on the VM
+# Deploy Omarchy Advanced wayvnc monitor - ONE COMMAND, ONE PASSWORD
 # Usage: ./scripts/deploy-to-vm.sh <vm-ip-address> [ssh-user]
 # Example: ./scripts/deploy-to-vm.sh 192.168.50.73 steve
 
@@ -16,36 +15,31 @@ if [[ -z "$VM_IP" ]]; then
   exit 1
 fi
 
-# Verify SSH connectivity
-echo "Testing SSH connection to $VM_IP as $SSH_USER..."
-if ! ssh -o ConnectTimeout=5 "$SSH_USER@$VM_IP" "echo 'SSH OK'" >/dev/null 2>&1; then
+# Setup SSH control socket for connection multiplexing
+# This allows all SSH/SCP commands to reuse the same authenticated session
+CONTROL_SOCKET="/tmp/ssh-deploy-control-%h-%p-%r"
+SSH_OPTS="-o ControlMaster=yes -o ControlPath=$CONTROL_SOCKET -o ControlPersist=5m"
+
+echo "Establishing SSH connection (you will enter password once)..."
+ssh $SSH_OPTS -o ConnectTimeout=5 "$SSH_USER@$VM_IP" "echo 'SSH OK'" || {
   echo "ERROR: Cannot connect to $VM_IP via SSH"
   exit 1
-fi
+}
+echo "✓ SSH connection established"
 
-echo "✓ SSH connection successful"
-
-# Copy deployment files to VM
 echo ""
-echo "Copying deployment files to VM..."
-scp install/files/usr-local-bin-omarchy-wayvnc-monitor "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor" >/dev/null
-scp config/systemd/system/omarchy-wayvnc-monitor.service "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor.service" >/dev/null
+echo "Deploying wayvnc monitor..."
+
+# Copy all files in one batch (reuses SSH session, no password needed)
+scp $SSH_OPTS -q install/files/usr-local-bin-omarchy-wayvnc-monitor "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor"
+scp $SSH_OPTS -q config/systemd/system/omarchy-wayvnc-monitor.service "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor.service"
+scp $SSH_OPTS -q scripts/deploy-wayvnc-monitor.sh "$SSH_USER@$VM_IP:/tmp/deploy-wayvnc-monitor.sh"
 echo "✓ Files copied to /tmp on VM"
 
-# Copy the deployment helper script
-echo ""
-echo "Copying deployment helper script..."
-scp scripts/deploy-wayvnc-monitor.sh "$SSH_USER@$VM_IP:/tmp/deploy-wayvnc-monitor.sh" >/dev/null
-echo "✓ Helper script copied"
+# Execute deployment script (reuses SSH session)
+ssh $SSH_OPTS -t "$SSH_USER@$VM_IP" sudo bash /tmp/deploy-wayvnc-monitor.sh
 
 echo ""
 echo "=========================================="
-echo "✓ Files Ready for Deployment"
-echo "=========================================="
-echo ""
-echo "To complete deployment, SSH to your VM and run:"
-echo ""
-echo "  ssh $SSH_USER@$VM_IP"
-echo "  bash /tmp/deploy-wayvnc-monitor.sh"
-echo ""
+echo "✓ Deployment Complete!"
 echo "=========================================="
