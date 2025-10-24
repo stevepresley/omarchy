@@ -8,13 +8,21 @@
 # Don't use set -e - we want the script to continue even if commands fail
 # set -e
 
-# Attach wayvnc to greeter Sway session only
-# After VNC disconnect, reconnects should always show greeter (not user desktops)
-# This prevents security issues where a different user could access the logged-in session
-attach_to_greeter_only() {
+# Ensure greeter Sway is running and attach wayvnc to it
+# If greeter is not running, launch it
+ensure_greeter_and_attach() {
   # Check for greeter Sway (running as root)
   GREETER_PID=$(pgrep -u root "sway" 2>/dev/null | head -1)
   echo "DEBUG: Checking for greeter. Found PID: $GREETER_PID" >&2
+
+  # If greeter not running, launch it
+  if [[ -z "$GREETER_PID" ]]; then
+    echo "DEBUG: Greeter not running, launching greetd..." >&2
+    systemctl start greetd 2>&1
+    sleep 2  # Give greeter time to start
+    GREETER_PID=$(pgrep -u root "sway" 2>/dev/null | head -1)
+    echo "DEBUG: After launch, greeter PID: $GREETER_PID" >&2
+  fi
 
   if [[ -n "$GREETER_PID" ]]; then
     # Greeter is running - get greeter's Wayland socket
@@ -34,8 +42,38 @@ attach_to_greeter_only() {
     fi
   fi
 
-  echo "DEBUG: Greeter not found, wayvnc remains detached" >&2
+  echo "DEBUG: Could not attach to greeter, wayvnc remains detached" >&2
   return 1
+}
+
+# Attach wayvnc to currently active user Hyprland or greeter
+# Priority: 1) User Hyprland (if logged in), 2) Greeter Sway
+attach_to_current_display() {
+  # Check for active user Hyprland (any non-root user with hyprland running)
+  ACTIVE_USER=$(ps aux | grep "[h]yprland" | awk '{print $1}' | grep -v root | head -1)
+  echo "DEBUG: Checking for active user Hyprland. Found: $ACTIVE_USER" >&2
+
+  if [[ -n "$ACTIVE_USER" ]]; then
+    # User is logged in - get their Wayland socket
+    RUNTIME_DIR="/run/user/$(id -u "$ACTIVE_USER")"
+    SOCKET="$RUNTIME_DIR/wayland-1"
+    echo "DEBUG: Trying to attach to user Hyprland socket: $SOCKET" >&2
+
+    if [[ -S "$SOCKET" ]]; then
+      echo "DEBUG: Socket exists, attempting attach..." >&2
+      wayvncctl --socket /tmp/wayvncctl-0 attach "$SOCKET" 2>&1 && {
+        echo "DEBUG: Successfully attached to user Hyprland: $SOCKET" >&2
+        return 0
+      }
+      echo "DEBUG: Attach to user Hyprland failed for $SOCKET" >&2
+    else
+      echo "DEBUG: User socket does not exist: $SOCKET" >&2
+    fi
+  fi
+
+  # Fall back to greeter if no user logged in
+  echo "DEBUG: No user logged in, falling back to greeter" >&2
+  ensure_greeter_and_attach
 }
 
 # Lock screen on VNC client disconnect
@@ -72,18 +110,19 @@ while true; do
       continue
     fi
 
-    # Detect client disconnect - lock screen and detach
+    # Detect client disconnect - lock screen and detach, then ensure greeter is running
     if echo "$event" | grep -q '"method":"client-disconnected"'; then
       echo "DEBUG: VNC client disconnected" >&2
       handle_disconnect
       sleep 1  # Wait for display state to stabilize after disconnect
-      # Don't reattach after disconnect - let greeter handle reconnect
+      # Ensure greeter is available for reconnect
+      ensure_greeter_and_attach 2>/dev/null || true
     fi
 
-    # On client connect, attach to greeter only (not user desktops)
+    # On client connect, attach to appropriate display (user desktop or greeter)
     if echo "$event" | grep -q '"method":"client-connected"'; then
       echo "DEBUG: VNC client connected" >&2
-      attach_to_greeter_only 2>/dev/null || true
+      attach_to_current_display 2>/dev/null || true
     fi
   done
 
