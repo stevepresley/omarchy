@@ -80,15 +80,27 @@ attach_to_current_display() {
 handle_disconnect() {
   # Find the user with active Hyprland session
   ACTIVE_USER=$(ps aux | grep "[h]yprland" | awk '{print $1}' | grep -v root | head -1)
+  echo "DEBUG: Found active user: $ACTIVE_USER" >&2
 
   if [[ -n "$ACTIVE_USER" ]]; then
-    # Get the session ID for this user and lock it
-    SESSION_ID=$(loginctl list-sessions | grep "$ACTIVE_USER" | awk '{print $1}' | head -1)
+    # Get ALL sessions for this user, check which one has seat (graphical session with Hyprland)
+    # Graphical sessions have a SEAT value, text sessions have "-"
+    SESSION_ID=$(loginctl list-sessions --no-legend | grep "$ACTIVE_USER" | grep -v "^.*-.*-.*user.*-$" | awk '{print $1}' | head -1)
+
+    # If that didn't work, try simpler approach: get session with non-empty SEAT
+    if [[ -z "$SESSION_ID" ]]; then
+      SESSION_ID=$(loginctl list-sessions --no-legend | awk -v user="$ACTIVE_USER" '$3==user && $4!="-" {print $1; exit}')
+    fi
+
+    echo "DEBUG: Found session $SESSION_ID for user $ACTIVE_USER" >&2
+
     if [[ -n "$SESSION_ID" ]]; then
       echo "DEBUG: Locking session $SESSION_ID for user $ACTIVE_USER" >&2
       LOCK_OUTPUT=$(loginctl lock-session "$SESSION_ID" 2>&1)
       LOCK_EXIT=$?
       echo "DEBUG: loginctl lock-session exit code: $LOCK_EXIT, output: $LOCK_OUTPUT" >&2
+    else
+      echo "DEBUG: Could not find graphical session for user $ACTIVE_USER" >&2
     fi
   fi
 
