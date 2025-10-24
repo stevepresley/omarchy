@@ -1318,12 +1318,26 @@ Replace the current autologin approach with greetd display manager:
   - Session 5 has Hyprland (SEAT=seat0), session 3 is pts/0 (no SEAT)
   - Locking wrong session = lock appears to work systemd-wise but VNC sees no lock screen
 
-  **Current Fix** (commit 74770be):
-  - Find session with SEAT value (graphical session = Hyprland's session)
-  - Lock THAT session (session 5), not first session (session 3)
-  - This should make lock screen visible again
+  **TESTED FIXES:**
 
-- **Status**: ❌ NEEDS TESTING - Commit 74770be ready to deploy and test
+  1. **Commit 74770be/c5ab78d - SEAT Detection** ✅ WORKS
+     - Find session with SEAT!="" (graphical session has SEAT value)
+     - Correctly identified session 5 (SEAT=seat0)
+     - Lock screen displays properly on VNC disconnect
+
+  2. **Commit [pending] - TTY Detection** (switching to for better reliability)
+     - Find session with TTY matching tty[0-9]+ pattern (real terminal, not pts/*)
+     - Rationale: TTY is more fundamental to session type than SEAT
+     - SEAT might not be assigned in all scenarios
+     - TTY detection is more reliable across different display managers
+
+  **Decision Rationale:**
+  - SEAT detection (c5ab78d) works NOW
+  - BUT: TTY detection likely more robust long-term
+  - Can revert to SEAT (c5ab78d) if TTY proves unreliable
+  - Planning to switch to TTY approach for production robustness
+
+- **Status**: ✅ SCREEN LOCK WORKING (commit c5ab78d with SEAT), switching to TTY detection for robustness
 
 **Issue 27: Login Sequence Visibility - Black Screen During Transition (2025-10-23)**
 - **Problem**: During greetd→Hyprland transition, user sees black screen with visible terminal output
