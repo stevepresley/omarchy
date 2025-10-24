@@ -1295,21 +1295,32 @@ Replace the current autologin approach with greetd display manager:
     - Fall back to greeter (if no user logged in) - show login prompt
   - ✅ On disconnect: Lock session + detach wayvnc + ensure greeter running
   - ✅ On reconnect: Attach to user desktop OR greeter (whichever available)
-- **Testing Results** (2025-10-24 - AFTER REBOOT):
-  - ✅ Screen LOCKED on disconnect (before reboot)
-  - ❌ Screen NOT locking on disconnect (after reboot) - REGRESSION IDENTIFIED
-  - **Root cause of regression** (commit 1e885f8):
-    - Multiple sessions exist for steve after reboot (session 3, 4, 5)
-    - Hyprland is in session 5 (tty1, seat0)
-    - Script was locking session 3 (pts/0) instead of session 5
-    - Session 3 is not the one running Hyprland, so lock had no effect
-    - **Fixed**: Now finds the session that owns the Hyprland PID and locks that one
-  - ❌ Greeter Sway not launching even though `systemctl start greetd` is called
-    - greetd is running but NOT launching the greeter Sway session
-    - `/etc/greetd/config.toml` specifies: `command = "sway --config /etc/greetd/sway-config"`
-    - But `pgrep -u root sway` returns nothing (greeter Sway not running as root)
-    - **Status**: SEPARATE ISSUE - greetd/regreet configuration problem
-- **Status**: ✅ Session locking fixed (commit 1e885f8), still need greeter Sway launch fix
+- **Testing Results & Commit History** (2025-10-24):
+
+  **After Reboot - Multiple Session Problem:**
+  - ❌ Commit af88072: Screen locked and showed password prompt (WORKED)
+  - ❌ Commit dbbf064: Added greeter launch logic, lock still worked initially
+  - ❌ Commit 39bef7b: Removed debug output silencing, lock still worked
+  - ❌ Commit efc874e: Changed to greeter-only attachment, lock stopped working
+  - ❌ Commit 85fe12e: Added locked session detection, lock broken
+  - ❌ Commit dbbf064: Reverted to user/greeter priority, lock still broken
+  - ❌ Commit 1e885f8: Added complex session matching (Hyprland PID), lock broken
+  - ❌ Commit 392e041: Fixed pgrep syntax, lock still broken
+  - ❌ Commit 83deb7d: Reverted to "simple" session locking, lock STILL broken
+
+  **Root Cause Analysis (2025-10-24):**
+  - After reboot, 4 steve sessions exist: 3 (pts/0), 4 (manager), 5 (tty1/seat0), 7 (pts/3)
+  - Hyprland runs in session 5 (has SEAT value, graphical session)
+  - All commits that did `grep "$ACTIVE_USER" | head -1` lock session 3 (wrong one)
+  - That's why lock appeared to work before reboot - probably only 1 session then
+  - NOW: Need to lock session with SEAT value (graphical session = Hyprland)
+
+  **Current Fix** (commit 74770be):
+  - Find session with non-empty SEAT column (graphical session)
+  - Lock THAT session, not first session
+  - Should lock session 5 (the one with Hyprland)
+
+- **Status**: ❌ STILL TESTING - Lock issue likely fixed in 74770be, need to verify
 
 **Issue 27: Login Sequence Visibility - Black Screen During Transition (2025-10-23)**
 - **Problem**: During greetd→Hyprland transition, user sees black screen with visible terminal output
