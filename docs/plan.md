@@ -1340,7 +1340,15 @@ Replace the current autologin approach with greetd display manager:
   - Switching to TTY approach for production robustness
   - Both methods target same issue (finding graphical session), different detection approach
 
-- **Status**: ✅ SCREEN LOCK WORKING (both SEAT c5ab78d and TTY pending versions), testing TTY for long-term reliability
+- **Status**: ✅ SCREEN LOCK WORKING (TTY detection commit 165e697), verified after reboot (2025-10-24)
+  - Tested: VNC disconnect locks screen with session 5 (TTY=tty1)
+  - After reboot: TTY detection still correctly identifies session 5
+  - Lock screen appears with password prompt on VNC reconnect ✅
+  - **REMAINING BLOCKER**: Greeter Sway not launching (Issue 26 Part 2)
+    - Monitor script attempts to launch greetd via `systemctl start`
+    - Greeter PID not found after launch attempt
+    - wayvnc remains detached, reconnect re-attaches to user Hyprland (not greeter)
+    - **TODO for next session**: Investigate greetd/regreet configuration why greeter not launching
 
 **Issue 27: Login Sequence Visibility - Black Screen During Transition (2025-10-23)**
 - **Problem**: During greetd→Hyprland transition, user sees black screen with visible terminal output
