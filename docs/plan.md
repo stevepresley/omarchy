@@ -1297,30 +1297,33 @@ Replace the current autologin approach with greetd display manager:
   - ✅ On reconnect: Attach to user desktop OR greeter (whichever available)
 - **Testing Results & Commit History** (2025-10-24):
 
+  **BREAKTHROUGH** (commit af88072):
+  - ✅ Added lock + detach logic: `loginctl lock-session` + `wayvncctl detach`
+  - ✅ TESTED AND WORKING: Screen locked, showed password prompt on VNC reconnect
+  - This was the working version before reboot
+
   **After Reboot - Multiple Session Problem:**
-  - ❌ Commit af88072: Screen locked and showed password prompt (WORKED)
-  - ❌ Commit dbbf064: Added greeter launch logic, lock still worked initially
-  - ❌ Commit 39bef7b: Removed debug output silencing, lock still worked
-  - ❌ Commit efc874e: Changed to greeter-only attachment, lock stopped working
-  - ❌ Commit 85fe12e: Added locked session detection, lock broken
-  - ❌ Commit dbbf064: Reverted to user/greeter priority, lock still broken
-  - ❌ Commit 1e885f8: Added complex session matching (Hyprland PID), lock broken
-  - ❌ Commit 392e041: Fixed pgrep syntax, lock still broken
-  - ❌ Commit 83deb7d: Reverted to "simple" session locking, lock STILL broken
+  - ❌ Same af88072 code, but NOW lock doesn't work (sessions changed)
+  - ❌ Commit dbbf064: Added greeter launch logic, lock still broken after reboot
+  - ❌ Commit 39bef7b: Removed debug silencing, lock still broken
+  - ❌ Commit efc874e: Changed attachment strategy, lock broken
+  - ❌ Commit 85fe12e: Session detection changes, lock broken
+  - ❌ Commit 1e885f8: Complex Hyprland PID matching, lock broken
+  - ❌ Commit 392e041: pgrep syntax fix, lock broken
+  - ❌ Commit 83deb7d: "Reverted to simple", lock STILL broken
 
   **Root Cause Analysis (2025-10-24):**
-  - After reboot, 4 steve sessions exist: 3 (pts/0), 4 (manager), 5 (tty1/seat0), 7 (pts/3)
-  - Hyprland runs in session 5 (has SEAT value, graphical session)
-  - All commits that did `grep "$ACTIVE_USER" | head -1` lock session 3 (wrong one)
-  - That's why lock appeared to work before reboot - probably only 1 session then
-  - NOW: Need to lock session with SEAT value (graphical session = Hyprland)
+  - BEFORE reboot: Probably only 1 steve session → simple grep worked
+  - AFTER reboot: 4 steve sessions (3, 4, 5, 7) → simple grep gets session 3 (wrong!)
+  - Session 5 has Hyprland (SEAT=seat0), session 3 is pts/0 (no SEAT)
+  - Locking wrong session = lock appears to work systemd-wise but VNC sees no lock screen
 
   **Current Fix** (commit 74770be):
-  - Find session with non-empty SEAT column (graphical session)
-  - Lock THAT session, not first session
-  - Should lock session 5 (the one with Hyprland)
+  - Find session with SEAT value (graphical session = Hyprland's session)
+  - Lock THAT session (session 5), not first session (session 3)
+  - This should make lock screen visible again
 
-- **Status**: ❌ STILL TESTING - Lock issue likely fixed in 74770be, need to verify
+- **Status**: ❌ NEEDS TESTING - Commit 74770be ready to deploy and test
 
 **Issue 27: Login Sequence Visibility - Black Screen During Transition (2025-10-23)**
 - **Problem**: During greetd→Hyprland transition, user sees black screen with visible terminal output
