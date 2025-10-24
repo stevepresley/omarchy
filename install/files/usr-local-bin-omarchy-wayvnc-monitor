@@ -8,45 +8,11 @@
 # Don't use set -e - we want the script to continue even if commands fail
 # set -e
 
-# Find and attach to currently active Wayland display
-attach_to_current_display() {
-  # Priority: 1) User Hyprland session (if NOT locked), 2) Greeter Sway
-
-  # Check for active user Hyprland (any non-root user with hyprland running)
-  ACTIVE_USER=$(ps aux | grep "[h]yprland" | awk '{print $1}' | grep -v root | head -1)
-  echo "DEBUG: Checking for active user. Found: $ACTIVE_USER" >&2
-
-  if [[ -n "$ACTIVE_USER" ]]; then
-    # Check if this user's session is locked - if so, skip to greeter
-    SESSION_ID=$(loginctl list-sessions | grep "$ACTIVE_USER" | awk '{print $1}' | head -1)
-    if [[ -n "$SESSION_ID" ]]; then
-      LOCK_STATE=$(loginctl show-session "$SESSION_ID" -p LockedHint | cut -d= -f2)
-      echo "DEBUG: Session $SESSION_ID lock state: $LOCK_STATE" >&2
-
-      if [[ "$LOCK_STATE" == "yes" ]]; then
-        echo "DEBUG: User session is locked, skipping to greeter" >&2
-        # Don't try to attach to locked session, fall through to greeter
-      else
-        # User is logged in and not locked - get their Wayland socket
-        RUNTIME_DIR="/run/user/$(id -u "$ACTIVE_USER")"
-        SOCKET="$RUNTIME_DIR/wayland-1"
-        echo "DEBUG: Trying to attach to user socket: $SOCKET" >&2
-
-        if [[ -S "$SOCKET" ]]; then
-          echo "DEBUG: Socket exists, attempting attach..." >&2
-          wayvncctl --socket /tmp/wayvncctl-0 attach "$SOCKET" 2>&1 && {
-            echo "DEBUG: Successfully attached to $SOCKET" >&2
-            return 0
-          }
-          echo "DEBUG: Attach failed for $SOCKET" >&2
-        else
-          echo "DEBUG: Socket does not exist: $SOCKET" >&2
-        fi
-      fi
-    fi
-  fi
-
-  # Check for greeter Sway (running as root, different from user Hyprland)
+# Attach wayvnc to greeter Sway session only
+# After VNC disconnect, reconnects should always show greeter (not user desktops)
+# This prevents security issues where a different user could access the logged-in session
+attach_to_greeter_only() {
+  # Check for greeter Sway (running as root)
   GREETER_PID=$(pgrep -u root "sway" 2>/dev/null | head -1)
   echo "DEBUG: Checking for greeter. Found PID: $GREETER_PID" >&2
 
@@ -59,16 +25,16 @@ attach_to_current_display() {
     if [[ -S "$SOCKET" ]]; then
       echo "DEBUG: Socket exists, attempting attach..." >&2
       wayvncctl --socket /tmp/wayvncctl-0 attach "$SOCKET" 2>&1 && {
-        echo "DEBUG: Successfully attached to $SOCKET" >&2
+        echo "DEBUG: Successfully attached to greeter: $SOCKET" >&2
         return 0
       }
-      echo "DEBUG: Attach failed for $SOCKET" >&2
+      echo "DEBUG: Attach to greeter failed for $SOCKET" >&2
     else
-      echo "DEBUG: Socket does not exist: $SOCKET" >&2
+      echo "DEBUG: Greeter socket does not exist: $SOCKET" >&2
     fi
   fi
 
-  echo "DEBUG: No display found to attach to" >&2
+  echo "DEBUG: Greeter not found, wayvnc remains detached" >&2
   return 1
 }
 
@@ -111,13 +77,13 @@ while true; do
       echo "DEBUG: VNC client disconnected" >&2
       handle_disconnect
       sleep 1  # Wait for display state to stabilize after disconnect
-      attach_to_current_display 2>/dev/null || true
+      # Don't reattach after disconnect - let greeter handle reconnect
     fi
 
-    # On client connect, ensure we're attached to the right display
+    # On client connect, attach to greeter only (not user desktops)
     if echo "$event" | grep -q '"method":"client-connected"'; then
       echo "DEBUG: VNC client connected" >&2
-      attach_to_current_display 2>/dev/null || true
+      attach_to_greeter_only 2>/dev/null || true
     fi
   done
 
