@@ -1325,7 +1325,7 @@ Replace the current autologin approach with greetd display manager:
      - Correctly identified session 5 (SEAT=seat0)
      - Lock screen displays properly on VNC disconnect
 
-  2. **Commit [IMPLEMENTED] - TTY Detection** (switching to for better reliability)
+  2. **Commit 165e697 - TTY Detection** ✅ IMPLEMENTED
      - Find session with TTY matching tty[0-9]+ pattern (real terminal, not pts/*)
      - Rationale: TTY is more fundamental to session type than SEAT
      - SEAT might not be assigned in all scenarios
