@@ -75,6 +75,10 @@ handle_disconnect() {
       echo "DEBUG: loginctl lock-session exit code: $LOCK_EXIT, output: $LOCK_OUTPUT" >&2
     fi
   fi
+
+  # Detach wayvnc from the locked user display so reconnect can show greeter
+  echo "DEBUG: Detaching wayvnc from locked display" >&2
+  wayvncctl --socket /tmp/wayvncctl-0 detach 2>&1 || true
 }
 
 # Main loop: monitor wayvnc events and keep display attachment current
