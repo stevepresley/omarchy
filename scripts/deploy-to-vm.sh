@@ -32,13 +32,20 @@ scp install/files/usr-local-bin-omarchy-wayvnc-monitor "$SSH_USER@$VM_IP:/tmp/om
 scp config/systemd/system/omarchy-wayvnc-monitor.service "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor.service" >/dev/null
 echo "✓ Files copied to /tmp on VM"
 
-# Copy the deployment helper script and run it
+# Copy the deployment helper script
 echo ""
-echo "Copying deployment helper script and executing..."
+echo "Copying deployment helper script..."
 scp scripts/deploy-wayvnc-monitor.sh "$SSH_USER@$VM_IP:/tmp/deploy-wayvnc-monitor.sh" >/dev/null
-ssh -t "$SSH_USER@$VM_IP" bash /tmp/deploy-wayvnc-monitor.sh
+echo "✓ Helper script copied"
 
 echo ""
 echo "=========================================="
-echo "✓ Deployment Complete!"
+echo "✓ Files Ready for Deployment"
+echo "=========================================="
+echo ""
+echo "To complete deployment, SSH to your VM and run:"
+echo ""
+echo "  ssh $SSH_USER@$VM_IP"
+echo "  bash /tmp/deploy-wayvnc-monitor.sh"
+echo ""
 echo "=========================================="
