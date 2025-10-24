@@ -116,13 +116,13 @@ while true; do
       handle_disconnect
       sleep 1  # Wait for display state to stabilize after disconnect
       # Ensure greeter is available for reconnect
-      ensure_greeter_and_attach 2>/dev/null || true
+      ensure_greeter_and_attach || true
     fi
 
     # On client connect, attach to appropriate display (user desktop or greeter)
     if echo "$event" | grep -q '"method":"client-connected"'; then
       echo "DEBUG: VNC client connected" >&2
-      attach_to_current_display 2>/dev/null || true
+      attach_to_current_display || true
     fi
   done
 
