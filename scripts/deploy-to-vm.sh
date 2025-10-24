@@ -17,8 +17,8 @@ fi
 
 # Setup SSH control socket for connection multiplexing
 # This allows all SSH/SCP commands to reuse the same authenticated session
-CONTROL_SOCKET="/tmp/ssh-deploy-control-%h-%p-%r"
-SSH_OPTS="-o ControlMaster=yes -o ControlPath=$CONTROL_SOCKET -o ControlPersist=5m"
+CONTROL_SOCKET="/tmp/ssh-deploy-${SSH_USER}-${VM_IP}"
+SSH_OPTS="-o ControlMaster=auto -o ControlPath=$CONTROL_SOCKET -o ControlPersist=5m"
 
 echo "Establishing SSH connection (you will enter password once)..."
 ssh $SSH_OPTS -o ConnectTimeout=5 "$SSH_USER@$VM_IP" "echo 'SSH OK'" || {
@@ -30,7 +30,7 @@ echo "✓ SSH connection established"
 echo ""
 echo "Deploying wayvnc monitor..."
 
-# Copy all files in one batch (reuses SSH session, no password needed)
+# Copy all files (reuses SSH session, no password needed)
 scp $SSH_OPTS -q install/files/usr-local-bin-omarchy-wayvnc-monitor "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor"
 scp $SSH_OPTS -q config/systemd/system/omarchy-wayvnc-monitor.service "$SSH_USER@$VM_IP:/tmp/omarchy-wayvnc-monitor.service"
 scp $SSH_OPTS -q scripts/deploy-wayvnc-monitor.sh "$SSH_USER@$VM_IP:/tmp/deploy-wayvnc-monitor.sh"
@@ -38,6 +38,9 @@ echo "✓ Files copied to /tmp on VM"
 
 # Execute deployment script (reuses SSH session)
 ssh $SSH_OPTS -t "$SSH_USER@$VM_IP" sudo bash /tmp/deploy-wayvnc-monitor.sh
+
+# Cleanup control socket
+rm -f "$CONTROL_SOCKET"
 
 echo ""
 echo "=========================================="
